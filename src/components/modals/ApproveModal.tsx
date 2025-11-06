@@ -114,7 +114,7 @@ export function ApproveModal({ isOpen, onClose, tokenSymbol, tokenAddress, decim
           onChange={(e) => setSpender(e.target.value.trim())}
           placeholder="0x..."
           disabled={isLoading}
-          className="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 focus:bg-white transition duration-150 disabled:bg-gray-100"
+          className="w-full px-4 py-2 bg-gray-50 border border-border-subtle rounded-lg shadow-sm focus:outline-none focus:ring-1 focus:ring-text-primary focus:border-text-primary focus:bg-white transition duration-150 disabled:bg-gray-100"
         />
         <p className="mt-1 text-xs text-gray-500">The address that will be allowed to spend your {tokenSymbol}</p>
       </div>
@@ -133,7 +133,7 @@ export function ApproveModal({ isOpen, onClose, tokenSymbol, tokenAddress, decim
           min="0"
           step="any"
           disabled={isLoading || isInfinite}
-          className="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 focus:bg-white transition duration-150 disabled:bg-gray-100"
+          className="w-full px-4 py-2 bg-gray-50 border border-border-subtle rounded-lg shadow-sm focus:outline-none focus:ring-1 focus:ring-text-primary focus:border-text-primary focus:bg-white transition duration-150 disabled:bg-gray-100"
         />
 
         {/* Infinite Approval Toggle */}
@@ -147,7 +147,7 @@ export function ApproveModal({ isOpen, onClose, tokenSymbol, tokenAddress, decim
               if (e.target.checked) setAmount("");
             }}
             disabled={isLoading}
-            className="h-4 w-4 text-emerald-600 focus:ring-emerald-500 border-gray-300 rounded"
+            className="h-4 w-4 text-emerald-600 focus:ring-emerald-500 border-border-subtle rounded"
           />
           <label htmlFor="infinite" className="ml-2 text-sm text-gray-700">
             Infinite Approval
@@ -173,7 +173,7 @@ export function ApproveModal({ isOpen, onClose, tokenSymbol, tokenAddress, decim
     <button
       onClick={handleApprove}
       disabled={isLoading || isConfirmed || !spender || (!isInfinite && !amount)}
-      className="w-full px-4 py-2.5 bg-emerald-600 text-white text-sm font-semibold rounded-lg shadow-sm hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+      className="w-full px-4 py-2.5 bg-button-primary-bg text-button-primary-text text-sm font-semibold rounded-lg hover:bg-gray-800 focus:outline-none focus:ring-1 focus:ring-text-primary disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
     >
       {isLoading ? "Approving..." : isConfirmed ? "Approved!" : `Approve ${tokenSymbol}`}
     </button>

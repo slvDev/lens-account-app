@@ -44,17 +44,17 @@ export function AccountIdentityPanel({ username, address }: AccountIdentityPanel
   return (
     <div>
       {username && (
-        <h2 className="text-2xl font-semibold text-gray-800 mb-1">
-          Welcome, <span className="font-bold text-emerald-600">{username}</span>!
+        <h2 className="text-2xl font-medium text-text-primary mb-1">
+          Welcome, <span className="font-semibold text-text-primary">{username}</span>!
         </h2>
       )}
-      <p className="text-sm text-gray-500 mb-4">Managing Lens Account:</p>
-      <div className="flex items-center space-x-3 bg-slate-50 p-4 rounded-lg">
-        <p className="text-base font-mono text-gray-800 break-all flex-1">{address}</p>
+      <p className="text-sm text-text-secondary mb-4">Managing Lens Account:</p>
+      <div className="flex items-center space-x-3 bg-gray-50 p-4 rounded-lg border border-border-subtle">
+        <p className="text-base font-mono text-text-primary break-all flex-1">{address}</p>
         <button
           onClick={handleOpenExplorer}
           title="View on Explorer"
-          className="p-2 text-gray-500 hover:text-emerald-600 hover:bg-slate-200 rounded-lg transition-colors duration-150"
+          className="p-2 text-text-secondary hover:text-text-primary hover:bg-gray-100 rounded-lg transition-colors duration-150"
         >
           <ArrowTopRightOnSquareIcon className="w-5 h-5" />
         </button>
@@ -62,7 +62,7 @@ export function AccountIdentityPanel({ username, address }: AccountIdentityPanel
           onClick={handleCopy}
           title={copied ? "Copied!" : "Copy Address"}
           className={`p-2 rounded-lg transition-colors duration-150 ${
-            copied ? "text-green-600 bg-green-100 hover:bg-green-200" : "text-gray-500 hover:text-emerald-600 hover:bg-slate-200"
+            copied ? "text-green-600 bg-green-100 hover:bg-green-200" : "text-text-secondary hover:text-text-primary hover:bg-gray-100"
           }`}
         >
           {copied ? <CheckIcon className="w-5 h-5" /> : <DocumentDuplicateIcon className="w-5 h-5" />}
@@ -70,7 +70,7 @@ export function AccountIdentityPanel({ username, address }: AccountIdentityPanel
         <button
           onClick={handleShowQr}
           title="Show QR Code"
-          className="p-2 text-gray-500 hover:text-emerald-600 hover:bg-slate-200 rounded-lg transition-colors duration-150"
+          className="p-2 text-text-secondary hover:text-text-primary hover:bg-gray-100 rounded-lg transition-colors duration-150"
         >
           <QrCodeIcon className="w-5 h-5" />
         </button>

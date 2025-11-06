@@ -103,7 +103,7 @@ export function OwnerPanel({ ownerAddress }: OwnerPanelProps) {
   let statusMessage = null;
   if (isLoading) {
     statusMessage = (
-      <div className="flex items-center text-emerald-600 text-sm mt-2">
+      <div className="flex items-center text-text-secondary text-sm mt-2">
         <ArrowPathIcon className="w-4 h-4 mr-1 animate-spin" />
         {isWritePending ? "Waiting for confirmation..." : "Processing transaction..."}
       </div>
@@ -126,14 +126,14 @@ export function OwnerPanel({ ownerAddress }: OwnerPanelProps) {
 
   return (
     <div>
-      <h2 className="text-xl font-semibold mb-6 text-gray-800">Account Owner</h2>
+      <h2 className="text-xl font-medium mb-6 text-text-primary">Account Owner</h2>
       {/* Consistent address display */}
-      <div className="flex items-center space-x-3 bg-slate-50 p-4 rounded-lg mb-4">
-        <p className="text-sm font-mono text-gray-800 break-all flex-1">{ownerAddress}</p>
+      <div className="flex items-center space-x-3 bg-gray-50 p-4 rounded-lg border border-border-subtle mb-4">
+        <p className="text-sm font-mono text-text-primary break-all flex-1">{ownerAddress}</p>
         <button
           onClick={handleOpenExplorer}
           title="View on Explorer"
-          className="p-2 text-gray-500 hover:text-emerald-600 hover:bg-slate-200 rounded-lg transition-colors duration-150"
+          className="p-2 text-text-secondary hover:text-text-primary hover:bg-gray-100 rounded-lg transition-colors duration-150"
         >
           <ArrowTopRightOnSquareIcon className="w-5 h-5" />
         </button>
@@ -141,7 +141,7 @@ export function OwnerPanel({ ownerAddress }: OwnerPanelProps) {
           onClick={handleCopy}
           title={copied ? "Copied!" : "Copy Address"}
           className={`p-2 rounded-lg transition-colors duration-150 ${
-            copied ? "text-green-600 bg-green-100 hover:bg-green-200" : "text-gray-500 hover:text-emerald-600 hover:bg-slate-200"
+            copied ? "text-green-600 bg-green-100 hover:bg-green-200" : "text-text-secondary hover:text-text-primary hover:bg-gray-100"
           }`}
         >
           {copied ? <CheckIcon className="w-5 h-5" /> : <DocumentDuplicateIcon className="w-5 h-5" />}
@@ -149,7 +149,10 @@ export function OwnerPanel({ ownerAddress }: OwnerPanelProps) {
       </div>
 
       {!isChangingOwner && (
-        <button onClick={handleToggleChangeOwner} className="text-sm font-medium text-emerald-600 hover:text-emerald-700 transition-colors">
+        <button
+          onClick={handleToggleChangeOwner}
+          className="text-sm font-medium text-text-primary hover:text-text-secondary transition-colors underline"
+        >
           Change Owner
         </button>
       )}

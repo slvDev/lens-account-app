@@ -209,74 +209,116 @@ export default function Home() {
   const showConnectButton = expectedOwner && !isLoadingOwner && !ownerFetchError;
 
   return (
-    <main className="relative flex min-h-screen flex-col items-center justify-center p-6 md:p-24 bg-gradient-to-br from-emerald-100 via-teal-100 to-blue-100">
-      <h1 className="text-5xl font-extrabold text-gray-900 mb-16 tracking-tight">Lens Account Dashboard</h1>
-      <div className="w-full max-w-lg p-10 md:p-12 space-y-10 bg-white rounded-2xl shadow-xl">
-        <DiscoveryForm
-          onAccountDetailsFound={handleAccountDetailsFound}
-          initialAddress={lensAccountAddress || ""}
-          initialUsername={lensUsername || ""}
-        />
-
-        <div className="space-y-4">
-          {isAddress(lensAccountAddress) && isLoadingOwner && (
-            <div className="mt-4 flex items-center justify-center gap-2 text-sm font-medium text-emerald-600">
-              <ArrowPathIcon className="w-5 h-5 animate-spin" />
-              <span>Fetching owner...</span>
+    <main className="flex min-h-screen bg-background">
+      {/* Left Column - Login Form */}
+      <div className="w-full lg:w-1/2 flex flex-col min-h-screen p-6 md:p-12 lg:p-16">
+        {/* Content wrapper with auto margins for vertical centering */}
+        <div className="flex flex-col justify-center flex-1">
+          <div className="max-w-lg mx-auto w-full space-y-8">
+            {/* Header with logo and title */}
+            <div className="flex flex-col items-center gap-8">
+              <div className="w-[107px] h-[69px] flex items-center justify-center">
+                <svg width="107" height="69" viewBox="0 0 107 69" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path
+                    d="M86.52 13.8071C81.5327 13.8071 77.0576 15.7971 73.6474 19.0087L73.2969 18.8303C72.5152 8.30345 64.1042 0 53.5635 0C43.0228 0 34.6118 8.30345 33.83 18.8303L33.4796 19.0087C30.0693 15.7971 25.5943 13.8071 20.607 13.8071C9.54059 13.8071 0.563477 22.9477 0.563477 34.2294C0.563477 43.974 10.0663 52.3323 12.4251 54.2538C23.5185 63.2434 37.9681 68.5 53.5635 68.5C69.1588 68.5 83.6085 63.2434 94.7018 54.2538C97.0742 52.3323 106.563 43.9877 106.563 34.2294C106.563 22.9477 97.5864 13.8071 86.5065 13.8071H86.52Z"
+                    fill="currentColor"
+                  />
+                </svg>
+              </div>
+              <h1 className="text-4xl font-normal text-foreground tracking-tight">Your account awaits.</h1>
             </div>
-          )}
 
-          {ownerFetchError && !isLoadingOwner && (
-            <div className="mt-4 flex items-center justify-center gap-2 text-sm font-medium text-red-600 bg-red-50 p-3 rounded-lg">
-              <ExclamationTriangleIcon className="w-5 h-5" />
-              <span>{ownerFetchError}</span>
-            </div>
-          )}
+            {/* Form Card */}
+            <div className="w-full p-8 space-y-8 bg-card-background rounded-lg border border-border-subtle">
+              <DiscoveryForm
+                onAccountDetailsFound={handleAccountDetailsFound}
+                initialAddress={lensAccountAddress || ""}
+                initialUsername={lensUsername || ""}
+              />
 
-          {expectedOwner && !isLoadingOwner && !ownerFetchError && (
-            <div className="p-5 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-sm font-semibold text-blue-800 mb-1">Identified Account Owner:</p>
-              <p className="text-xs text-blue-700 break-words font-mono">{expectedOwner}</p>
-              {!isConnected && <p className="text-xs text-blue-600 mt-2">Connect this wallet to proceed.</p>}
-            </div>
-          )}
+              <div className="space-y-4">
+                {isAddress(lensAccountAddress) && isLoadingOwner && (
+                  <div className="mt-4 flex items-center justify-center gap-2 text-sm font-medium text-text-secondary">
+                    <ArrowPathIcon className="w-5 h-5 animate-spin" />
+                    <span>Fetching owner...</span>
+                  </div>
+                )}
 
-          {verificationError && (
-            <div className="mt-4 flex items-center justify-center gap-2 text-sm font-medium text-red-600 bg-red-50 p-3 rounded-lg">
-              <ExclamationTriangleIcon className="w-5 h-5" />
-              <span>{verificationError}</span>
-            </div>
-          )}
+                {ownerFetchError && !isLoadingOwner && (
+                  <div className="mt-4 flex items-center justify-center gap-2 text-sm font-medium text-red-600 bg-red-50 p-3 rounded-lg border border-red-200">
+                    <ExclamationTriangleIcon className="w-5 h-5" />
+                    <span>{ownerFetchError}</span>
+                  </div>
+                )}
 
-          {showConnectButton && (
-            <div className="flex flex-col items-center gap-3 mt-2">
-              <ConnectOwnerButton />
-              {isConnected && connectedChainId !== LENS_CHAIN_ID && (
-                <p className="text-xs text-orange-600 bg-orange-50 px-3 py-2 rounded-md">Waiting for network switch...</p>
-              )}
+                {expectedOwner && !isLoadingOwner && !ownerFetchError && (
+                  <div className="p-5 bg-gray-50 border border-gray-200 rounded-lg">
+                    <p className="text-sm font-semibold text-text-primary mb-1">Identified Account Owner:</p>
+                    <p className="text-xs text-text-secondary break-words font-mono">{expectedOwner}</p>
+                    {!isConnected && <p className="text-xs text-text-secondary mt-2">Connect this wallet to proceed.</p>}
+                  </div>
+                )}
+
+                {verificationError && (
+                  <div className="mt-4 flex items-center justify-center gap-2 text-sm font-medium text-red-600 bg-red-50 p-3 rounded-lg border border-red-200">
+                    <ExclamationTriangleIcon className="w-5 h-5" />
+                    <span>{verificationError}</span>
+                  </div>
+                )}
+
+                {showConnectButton && (
+                  <div className="flex flex-col items-center gap-3 mt-2">
+                    <ConnectOwnerButton />
+                    {isConnected && connectedChainId !== LENS_CHAIN_ID && (
+                      <p className="text-xs text-orange-600 bg-orange-50 px-3 py-2 rounded-md border border-orange-200">
+                        Waiting for network switch...
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
-          )}
+          </div>
         </div>
+
+        {/* Footer */}
+        <footer className="mt-8 pt-6 border-t border-border-subtle">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-text-secondary max-w-lg mx-auto w-full">
+            <div className="flex items-center gap-4">
+              <span>© 2025 Lens Labs</span>
+              <a href="https://www.lens.xyz/privacy" target="_blank" rel="noopener noreferrer" className="hover:text-text-primary transition-colors">
+                Privacy
+              </a>
+              <a href="https://www.lens.xyz/terms" target="_blank" rel="noopener noreferrer" className="hover:text-text-primary transition-colors">
+                Terms
+              </a>
+            </div>
+            <div className="flex items-center gap-4">
+              <a
+                href="https://github.com/vicnaum/lens-account-app"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-text-primary transition-colors"
+              >
+                Developers
+              </a>
+              <a href="https://fkng.social" target="_blank" rel="noopener noreferrer" className="hover:text-text-primary transition-colors">
+                FKNG.SOCIAL
+              </a>
+            </div>
+          </div>
+        </footer>
       </div>
 
-      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2">
-        {/* GitHub contribution link */}
-        <div className="flex items-center gap-3 mb-3">
-          <span className="text-xs font-medium text-gray-500">Contribute:</span>
-          <a
-            href="https://github.com/vicnaum/lens-account-app"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-sm font-medium text-gray-600 hover:text-emerald-600 transition-colors"
-          >
-            GitHub
-          </a>
+      {/* Right Column - Placeholder Content */}
+      <div className="hidden lg:flex w-1/2 bg-gray-50 items-center justify-center p-16">
+        <div className="max-w-xl text-center space-y-6">
+          <h2 className="text-3xl font-medium text-text-primary">Welcome to Lens</h2>
+          <p className="text-lg text-text-secondary leading-relaxed">
+            Lens is an open social network where users own their content and connections, and developers can build apps on the network.
+          </p>
+          <p className="text-base text-text-secondary">Connect your Lens account to manage your identity, tokens, and dApp connections.</p>
         </div>
-
-        <a href="https://fkng.social" target="_blank" rel="noopener noreferrer" className="block text-gray-500 hover:text-gray-600 transition-colors">
-          <img src="/FKNG.SOCIAL.svg" alt="FKNG.SOCIAL" className="h-5 w-auto" />
-        </a>
-        <p className="font-sans text-[11px] font-light text-gray-500">JOIN THE FKNG REVOLUTION</p>
       </div>
     </main>
   );

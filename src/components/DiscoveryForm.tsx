@@ -22,7 +22,7 @@ function StatusMessage({ type, message }: { type: "loading" | "error" | "success
   return (
     <div
       className={`flex items-center justify-center gap-2 text-sm font-medium ${
-        type === "loading" ? "text-emerald-600" : type === "error" ? "text-red-600" : "text-green-600"
+        type === "loading" ? "text-text-secondary" : type === "error" ? "text-red-600" : "text-green-600"
       }`}
     >
       {type === "loading" && <ArrowPathIcon className="w-4 h-4 animate-spin" />}
@@ -190,12 +190,14 @@ export function DiscoveryForm({ onAccountDetailsFound, initialUsername = "", ini
   return (
     <div className="w-full max-w-md mx-auto space-y-8">
       <div className="text-center space-y-2">
-        <p className="text-base text-gray-500">To login, please enter your</p>
+        <p className="text-sm text-text-secondary" style={{ letterSpacing: "-0.00813rem" }}>
+          To login, please enter your
+        </p>
       </div>
 
       <div className="space-y-6">
         <div>
-          <label htmlFor="username" className="block text-sm font-semibold text-gray-700 mb-2">
+          <label htmlFor="username" className="block text-sm font-medium text-text-primary mb-2">
             Lens Username
           </label>
           <input
@@ -205,7 +207,7 @@ export function DiscoveryForm({ onAccountDetailsFound, initialUsername = "", ini
             value={username}
             onChange={handleUsernameChange}
             placeholder="e.g. stani"
-            className={`w-full px-4 py-3 bg-gray-50 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 focus:bg-white transition duration-200`}
+            className={`w-full px-4 py-3 bg-gray-50 border border-border-subtle rounded-lg focus:outline-none focus:ring-1 focus:ring-text-primary focus:border-text-primary focus:bg-white transition duration-200`}
             aria-describedby="username-status"
             disabled={isLoading && lastEdited === "address"}
           />
@@ -213,15 +215,15 @@ export function DiscoveryForm({ onAccountDetailsFound, initialUsername = "", ini
 
         <div className="relative flex items-center justify-center my-6">
           <div className="absolute inset-0 flex items-center" aria-hidden="true">
-            <div className="w-full border-t border-gray-200"></div>
+            <div className="w-full border-t border-border-subtle"></div>
           </div>
           <div className="relative flex justify-center">
-            <span className="bg-white px-2 text-sm font-medium text-gray-500">OR</span>
+            <span className="bg-card-background px-2 text-sm font-medium text-text-secondary">OR</span>
           </div>
         </div>
 
         <div>
-          <label htmlFor="address" className="block text-sm font-semibold text-gray-700 mb-2">
+          <label htmlFor="address" className="block text-sm font-medium text-text-primary mb-2">
             Lens Account Address
           </label>
           <input
@@ -231,8 +233,8 @@ export function DiscoveryForm({ onAccountDetailsFound, initialUsername = "", ini
             value={address}
             onChange={handleAddressChange}
             placeholder="0x..."
-            className={`w-full px-4 py-3 bg-gray-50 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 focus:bg-white transition duration-200 ${
-              !lookupError && isAddress(address) ? "border-green-500" : address && !isAddress(address) ? "border-red-500" : "border-gray-300"
+            className={`w-full px-4 py-3 bg-gray-50 border rounded-lg focus:outline-none focus:ring-1 focus:ring-text-primary focus:border-text-primary focus:bg-white transition duration-200 ${
+              !lookupError && isAddress(address) ? "border-green-500" : address && !isAddress(address) ? "border-red-500" : "border-border-subtle"
             }`}
             aria-describedby="address-status"
             disabled={isLoading && lastEdited === "username"}

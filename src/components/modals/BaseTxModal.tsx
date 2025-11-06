@@ -69,14 +69,14 @@ export function BaseTxModal({
   let statusMessage = null;
   if (isLoading) {
     statusMessage = (
-      <div className="flex items-center justify-center text-emerald-700 text-sm p-3 bg-emerald-50 rounded-lg">
+      <div className="flex items-center justify-center text-text-secondary text-sm p-3 bg-gray-50 rounded-lg border border-border-subtle">
         <ArrowPathIcon className="w-4 h-4 mr-1.5 animate-spin" />
         Processing transaction... Check your wallet.
       </div>
     );
   } else if (isSuccess) {
     statusMessage = (
-      <div className="flex items-center justify-center text-emerald-700 text-sm p-3 bg-emerald-50 rounded-lg">
+      <div className="flex items-center justify-center text-green-700 text-sm p-3 bg-green-50 rounded-lg border border-green-200">
         <CheckCircleIcon className="w-5 h-5 mr-1.5" />
         Transaction successful!
         {txHash && (
@@ -84,17 +84,17 @@ export function BaseTxModal({
             href={`https://explorer.lens.xyz/tx/${txHash}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="ml-1.5 underline hover:text-emerald-800 font-medium"
+            className="ml-1.5 underline hover:text-green-800 font-medium"
           >
             View on Explorer
           </a>
         )}
-        <span className="ml-2 text-gray-500">(Closing in {countdown}s)</span>
+        <span className="ml-2 text-text-secondary">(Closing in {countdown}s)</span>
       </div>
     );
   } else if (error) {
     statusMessage = (
-      <div className="flex items-center justify-center text-red-700 text-sm p-3 bg-red-50 rounded-lg">
+      <div className="flex items-center justify-center text-red-700 text-sm p-3 bg-red-50 rounded-lg border border-red-200">
         <ExclamationTriangleIcon className="w-4 h-4 mr-1" />
         Error: {error.message?.split("(")?.[0]?.trim() || "Unknown error"} {/* Show concise error with fallback */}
       </div>
@@ -107,17 +107,20 @@ export function BaseTxModal({
 
   return (
     <div className="fixed inset-0 backdrop-blur-md bg-black/60 flex items-center justify-center z-50 p-4" onClick={handleClose}>
-      <div className="bg-white p-8 rounded-2xl shadow-2xl relative max-w-xl w-full mx-4" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="bg-card-background p-8 rounded-lg border border-border-subtle relative max-w-xl w-full mx-4"
+        onClick={(e) => e.stopPropagation()}
+      >
         <button
           onClick={handleClose}
           disabled={disableClose || isLoading}
-          className={`absolute top-4 right-4 p-1 rounded-full ${disableClose || isLoading ? "text-gray-300 cursor-not-allowed" : "text-gray-400 hover:bg-gray-100 hover:text-gray-700"} transition-colors`}
+          className={`absolute top-4 right-4 p-1 rounded-full ${disableClose || isLoading ? "text-gray-300 cursor-not-allowed" : "text-text-secondary hover:bg-gray-100 hover:text-text-primary"} transition-colors`}
           aria-label="Close modal"
         >
           <XMarkIcon className="w-6 h-6" />
         </button>
 
-        <h3 className="text-2xl font-semibold mb-6 text-gray-800 pr-8">{title}</h3>
+        <h3 className="text-2xl font-medium mb-6 text-text-primary pr-8">{title}</h3>
 
         {/* Modal Form Content */}
         <div className="space-y-5 mb-5">{contentToRender}</div>
