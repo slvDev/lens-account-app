@@ -7,10 +7,12 @@
   --border-subtle: #e5e5e5;
   --text-primary: #2c2d30;
   --text-secondary: #6b6b6b;
-  --button-primary-bg: #2c2d30;
+  --primary: color(display-p3 0.1176470588 0.7764705882 0.6352941176);
+  --primary-dark: color(display-p3 0.0705882353 0.6941176471 0.5882352941);
+  --button-primary-bg: var(--primary);
   --button-primary-text: #ffffff;
   --button-secondary-bg: transparent;
-  --button-secondary-border: #2c2d30;
+  --button-secondary-border: #d1d5db;
   --button-secondary-text: #2c2d30;
 }
 
@@ -21,6 +23,13 @@
   --color-border-subtle: var(--border-subtle);
   --color-text-primary: var(--text-primary);
   --color-text-secondary: var(--text-secondary);
+  --color-primary: var(--primary);
+  --color-primary-dark: var(--primary-dark);
+  --color-button-primary-bg: var(--button-primary-bg);
+  --color-button-primary-text: var(--button-primary-text);
+  --color-button-secondary-bg: var(--button-secondary-bg);
+  --color-button-secondary-border: var(--button-secondary-border);
+  --color-button-secondary-text: var(--button-secondary-text);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -35,5 +44,68 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family:
+    var(--font-geist-sans),
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+}
+
+/* 3D Transform utilities for flip card */
+.perspective-1000 {
+  perspective: 1000px;
+}
+
+.transform-style-3d {
+  transform-style: preserve-3d;
+}
+
+.backface-hidden {
+  backface-visibility: hidden;
+}
+
+.rotate-y-180 {
+  transform: rotateY(180deg);
+}
+
+/* Animation keyframes */
+@keyframes fade-out-up {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Animation utility classes */
+.animate-fade-out-up {
+  animation: fade-out-up 300ms ease-out forwards;
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 400ms ease-out forwards;
+  opacity: 0;
+}
+
+.animation-delay-200 {
+  animation-delay: 200ms;
+}
+
+.animation-delay-400 {
+  animation-delay: 400ms;
 }
