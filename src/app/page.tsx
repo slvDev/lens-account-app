@@ -249,7 +249,7 @@ export default function Home() {
   return (
     <main className="flex h-screen bg-background overflow-y-auto">
       {/* Left Column - Login Form */}
-      <div className="w-full lg:w-1/2 flex flex-col min-h-screen bg-white">
+      <div className="w-full lg:w-1/2 flex flex-col min-h-screen bg-white z-10 border-r border-gray-200">
         {/* Content wrapper */}
         <div className="flex-1 px-6 md:px-12 lg:px-16 flex items-center justify-center">
           <div className="max-w-lg w-full space-y-8">
@@ -383,22 +383,25 @@ export default function Home() {
       </div>
 
       {/* Right Column - Profile Cards Grid */}
-      <div className="hidden lg:flex w-1/2 h-screen bg-gray-50 overflow-hidden fixed right-0 top-0">
-        <div className="w-full h-full p-8">
-          <div className="grid grid-cols-3 auto-rows-fr gap-4 h-fit">
-            {/* Show discovered account in first card if available */}
-            <ProfileCard username={lensUsername || undefined} address={lensAccountAddress || undefined} owner={expectedOwner || undefined} />
-            <ProfileCard />
-            <ProfileCard />
-            <ProfileCard />
-            <ProfileCard />
-            <ProfileCard />
-            <ProfileCard />
-            <ProfileCard />
-            <ProfileCard />
-            <ProfileCard />
-            <ProfileCard />
-            <ProfileCard />
+      <div className="hidden lg:flex w-1/2 h-screen bg-gray-50 fixed right-0 top-0 scale-75">
+        <div className="w-full h-full relative">
+          <div
+            style={{
+              position: "absolute",
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              width: "fit-content",
+              height: "fit-content",
+              display: "grid",
+              gap: "2rem",
+              gridTemplateColumns: "repeat(7, 1fr)",
+            }}
+          >
+            {/* Generate 49 cards (7x7 grid) */}
+            {Array.from({ length: 49 }).map((_, index) => (
+              <ProfileCard key={index} />
+            ))}
           </div>
         </div>
       </div>

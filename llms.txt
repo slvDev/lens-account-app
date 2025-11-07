@@ -102,188 +102,6 @@ tsconfig.json
 <files>
 This section contains the contents of the repository's files.
 
-<file path="src/components/Button.tsx">
-"use client";
-
-import { ButtonHTMLAttributes, ReactNode } from "react";
-
-interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: "primary" | "secondary";
-  size?: "sm" | "md" | "lg";
-  wide?: boolean;
-  loading?: boolean;
-  children: ReactNode;
-  asChild?: boolean;
-  href?: string;
-}
-
-export function Button({
-  variant = "primary",
-  size = "md",
-  wide = false,
-  loading = false,
-  children,
-  className = "",
-  disabled,
-  asChild,
-  href,
-  ...props
-}: ButtonProps) {
-  // Base styles
-  const baseStyles =
-    "inline-flex items-center justify-center gap-2 font-medium rounded-lg transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer";
-
-  // Variant styles
-  const variantStyles = {
-    primary: "bg-button-primary-bg text-button-primary-text border border-button-primary-bg hover:bg-primary-dark focus:ring-text-primary",
-    secondary: "bg-button-secondary-bg text-button-secondary-text border border-button-secondary-border hover:bg-gray-50 focus:ring-text-primary",
-  };
-
-  // Size styles
-  const sizeStyles = {
-    sm: "px-4 py-2 text-sm",
-    md: "px-5 py-2.5 text-base",
-    lg: "px-6 py-3 text-base",
-  };
-
-  // Wide (full width) style
-  const wideStyle = wide ? "w-full" : "";
-
-  // Combine all styles
-  const buttonClasses = `${baseStyles} ${variantStyles[variant]} ${sizeStyles[size]} ${wideStyle} ${className}`.trim();
-
-  // Loading spinner SVG (matches ref.html design)
-  const spinner = (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" className="animate-spin">
-      <circle cx="8" cy="8" r="7" stroke="currentColor" strokeOpacity="0.25" strokeWidth="2" vectorEffect="non-scaling-stroke" />
-      <path
-        d="M15 8C15 4.13401 11.866 1 8 1C4.13401 1 1 4.13401 1 8C1 11.866 4.13401 15 8 15"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        vectorEffect="non-scaling-stroke"
-      />
-    </svg>
-  );
-
-  // If href is provided, render as link
-  if (href) {
-    return (
-      <a
-        href={href}
-        className={buttonClasses}
-        data-variant={variant}
-        data-size={size}
-        data-wide={wide}
-        style={{ minWidth: size === "lg" ? "11rem" : undefined }}
-      >
-        {loading && spinner}
-        {children}
-      </a>
-    );
-  }
-
-  // Otherwise render as button
-  return (
-    <button
-      className={buttonClasses}
-      disabled={disabled || loading}
-      data-variant={variant}
-      data-size={size}
-      data-wide={wide}
-      style={{ minWidth: size === "lg" ? "11rem" : undefined }}
-      {...props}
-    >
-      {loading && spinner}
-      {children}
-    </button>
-  );
-}
-</file>
-
-<file path="src/components/ProfileCard.tsx">
-"use client";
-
-interface ProfileCardProps {
-  username?: string;
-  address?: string;
-  owner?: string;
-  profileImage?: string;
-}
-
-export function ProfileCard({ username, address, owner, profileImage }: ProfileCardProps) {
-  return (
-    <div className="w-full aspect-square bg-card-background border border-border-subtle rounded-lg p-4 flex flex-col items-center justify-center gap-3">
-      {/* Profile Image or Placeholder Silhouette */}
-      <div className="w-20 h-20 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
-        {profileImage ? (
-          <img src={profileImage} alt={username || "Profile"} className="w-full h-full object-cover" />
-        ) : (
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-gray-300">
-            {/* User silhouette icon */}
-            <circle cx="12" cy="8" r="4" fill="currentColor" />
-            <path d="M20 19C20 15.6863 16.4183 13 12 13C7.58172 13 4 15.6863 4 19" fill="currentColor" />
-          </svg>
-        )}
-      </div>
-
-      {/* Username/Address */}
-      <div className="text-center space-y-1 w-full">
-        {username ? (
-          <p className="text-sm font-medium text-text-primary truncate px-1">{username}</p>
-        ) : address ? (
-          <p className="text-xs font-mono text-text-secondary truncate px-1">
-            {address.slice(0, 6)}...{address.slice(-4)}
-          </p>
-        ) : (
-          <div className="h-4 bg-gray-200 rounded w-3/4 mx-auto" />
-        )}
-      </div>
-    </div>
-  );
-}
-</file>
-
-<file path="src/lib/animations.ts">
-// Animation variants for Framer Motion
-// For input field - enters from bottom, exits upward
-export const fadeOutUp = {
-  initial: { opacity: 0, y: 20 },
-  animate: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut" } },
-  exit: { opacity: 0, y: -20, transition: { duration: 0.3, ease: "easeOut" } },
-};
-
-export const fadeInUp = {
-  initial: { opacity: 0, y: 20 },
-  animate: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut" } },
-  exit: { opacity: 0, y: -20, transition: { duration: 0.3, ease: "easeOut" } },
-};
-
-export const fadeInUpWithDelay = (delay: number) => ({
-  initial: { opacity: 0, y: 20 },
-  animate: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.4, ease: "easeOut", delay },
-  },
-  exit: { opacity: 0, y: -20, transition: { duration: 0.3, ease: "easeOut" } },
-});
-
-// For cards that appear after input disappears
-export const fadeInUpDelayed = {
-  initial: { opacity: 0, y: 20 },
-  animate: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut", delay: 0.5 } },
-  exit: { opacity: 0, y: -20, transition: { duration: 0.3, ease: "easeOut" } },
-};
-
-// For initial page load animations with custom stagger timing
-export const fadeInUpStagger = (delay: number) => ({
-  initial: { opacity: 0, y: 20 },
-  animate: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut", delay } },
-  exit: { opacity: 0, y: -20, transition: { duration: 0.3, ease: "easeOut" } },
-});
-</file>
-
 <file path="ref.html">
 <html lang="en" class="__variable_7c159a">
   <head>
@@ -3534,24 +3352,160 @@ export const fadeInUpStagger = (delay: number) => ({
 </html>
 </file>
 
-<file path="src/components/ConnectOwnerButton.tsx">
-// components/ConnectOwnerButton.tsx
+<file path="src/components/Button.tsx">
 "use client";
 
-import { ConnectKitButton } from "connectkit";
-import { Button } from "./Button";
+import { ButtonHTMLAttributes, ReactNode } from "react";
 
-export function ConnectOwnerButton() {
+interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: "primary" | "secondary";
+  size?: "sm" | "md" | "lg";
+  wide?: boolean;
+  loading?: boolean;
+  children: ReactNode;
+  asChild?: boolean;
+  href?: string;
+}
+
+export function Button({
+  variant = "primary",
+  size = "md",
+  wide = false,
+  loading = false,
+  children,
+  className = "",
+  disabled,
+  asChild,
+  href,
+  ...props
+}: ButtonProps) {
+  // Base styles
+  const baseStyles =
+    "inline-flex items-center justify-center gap-2 font-medium rounded-lg transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer";
+
+  // Variant styles
+  const variantStyles = {
+    primary: "bg-button-primary-bg text-button-primary-text border border-button-primary-bg hover:bg-primary-dark focus:ring-text-primary",
+    secondary: "bg-button-secondary-bg text-button-secondary-text border border-button-secondary-border hover:bg-gray-50 focus:ring-text-primary",
+  };
+
+  // Size styles
+  const sizeStyles = {
+    sm: "px-4 py-2 text-sm",
+    md: "px-5 py-2.5 text-base",
+    lg: "px-6 py-3 text-base",
+  };
+
+  // Wide (full width) style
+  const wideStyle = wide ? "w-full" : "";
+
+  // Combine all styles
+  const buttonClasses = `${baseStyles} ${variantStyles[variant]} ${sizeStyles[size]} ${wideStyle} ${className}`.trim();
+
+  // Loading spinner SVG (matches ref.html design)
+  const spinner = (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" className="animate-spin">
+      <circle cx="8" cy="8" r="7" stroke="currentColor" strokeOpacity="0.25" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+      <path
+        d="M15 8C15 4.13401 11.866 1 8 1C4.13401 1 1 4.13401 1 8C1 11.866 4.13401 15 8 15"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        vectorEffect="non-scaling-stroke"
+      />
+    </svg>
+  );
+
+  // If href is provided, render as link
+  if (href) {
+    return (
+      <a
+        href={href}
+        className={buttonClasses}
+        data-variant={variant}
+        data-size={size}
+        data-wide={wide}
+        style={{ minWidth: size === "lg" ? "11rem" : undefined }}
+      >
+        {loading && spinner}
+        {children}
+      </a>
+    );
+  }
+
+  // Otherwise render as button
   return (
-    <ConnectKitButton.Custom>
-      {({ isConnected, show, truncatedAddress, ensName }) => {
-        return (
-          <Button onClick={show} variant="primary" size="md" wide={false}>
-            {isConnected ? (ensName ?? truncatedAddress) : "Connect Wallet"}
-          </Button>
-        );
-      }}
-    </ConnectKitButton.Custom>
+    <button
+      className={buttonClasses}
+      disabled={disabled || loading}
+      data-variant={variant}
+      data-size={size}
+      data-wide={wide}
+      style={{ minWidth: size === "lg" ? "11rem" : undefined }}
+      {...props}
+    >
+      {loading && spinner}
+      {children}
+    </button>
+  );
+}
+</file>
+
+<file path="src/components/ProfileCard.tsx">
+"use client";
+
+// interface ProfileCardProps {
+//   username?: string;
+//   address?: string;
+//   owner?: string;
+//   displayName?: string;
+// }
+
+export function ProfileCard() {
+  // export function ProfileCard({ username, address, owner, displayName }: ProfileCardProps) {
+  return (
+    <div className="w-[215px] h-[305px] bg-white border border-gray-200 rounded-4xl shadow-sm flex flex-col relative">
+      {/* Pill-shaped rectangle at the top */}
+      <div className="absolute top-5 left-1/2 -translate-x-1/2 w-12 h-3 rounded-full bg-gray-200 border border-gray-300"></div>
+
+      {/* Avatar */}
+      <div className="flex-1 flex items-center justify-center pt-3">
+        <div className="w-48 h-48 rounded-2xl overflow-hidden">
+          <svg width="192" height="192" viewBox="0 0 192 192" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="192" height="192" fill="#F9F9F9"></rect>
+            <g
+              stroke="color(display-p3 0.1725 0.1765 0.1882)"
+              strokeMiterlimit="10"
+              clipPath="url(#clip0_16190_6133)"
+              opacity="0.1"
+              style={{ mixBlendMode: "color-burn" }}
+            >
+              <path d="M419.214 114.219C305.16 75.205 253.988 67.321 228.413 48.325 201.791 29.8 200.733.19 162.334-71.667"></path>
+              <path d="M90.614-79.307C124.668-34.83 145.033-.909 158.037 21.76c13.316 23.04 19.271 34.828 31.806 43.797 12.413 9.007 31.406 15.195 67.879 28.282 35.884 12.82 89.247 32.538 157.165 62.409"></path>
+              <path d="M410.71 198.307c-72.842-40.289-136.52-70.821-176.467-88.567-41.275-18.516-58.819-24.245-70.242-32.62-11.607-8.292-17.07-19.176-38.335-46.205C105.361 4.805 69.223-37.454 18.613-87.283"></path>
+              <path d="M406.652 240.55c-67.743-44.933-142.798-90.43-186.45-115.382-46.37-26.754-61.34-32.945-72.161-40.899-11.004-7.887-17.777-17.477-51.747-49.352C64.704 4.997 5.916-47.209-54.176-95.65M402.767 283.033c-50.259-36.689-140.208-102.496-188.497-137.818-53.357-39.059-65.048-47.667-76.693-56.167-11.698-8.54-23.266-16.93-76.508-55.687C12.899-1.693-76.914-67.128-127.963-104.393M329.704 275.012c-59.981-48.395-119.045-101.038-150.835-131.304-34.169-32.202-41.034-42.041-52.004-49.976-10.813-8.02-25.68-14.082-71.955-40.621C11.353 28.374-63.616-16.825-131.897-61.951"></path>
+              <path d="M257.01 267.133c-50.816-50.106-87.228-92.82-107.703-119.272-21.463-27.391-26.957-38.533-38.557-46.893C99.336 92.51 81.905 86.826 40.7 68.471.828 50.87-62.79 20.581-135.926-19.687"></path>
+              <path d="M184.567 259.383c-34.307-44.862-54.891-79.215-68.006-102.218-13.457-23.379-19.416-35.406-31.91-44.489-12.371-9.122-31.248-15.298-67.613-28.288-35.806-12.727-89.071-32.265-157.119-62.013"></path>
+              <path d="M-144.442 64.4c114.05 38.774 164.858 46.483 190.32 65.723 26.48 18.75 27.589 48.994 66.346 121.639"></path>
+              <path d="M39.815 244.203c-29.348-98.188-28.417-98.107-186.617-137.262"></path>
+            </g>
+            <defs>
+              <clipPath id="clip0_16190_6133">
+                <path fill="#fff" d="m-162.439 223.627 34.53-328.526 565.206 59.405-34.53 328.527z"></path>
+              </clipPath>
+            </defs>
+            <circle cx="96" cy="222.222" r="88.8889" fill="#E5E5E5"></circle>
+            <circle cx="96" cy="78.2219" r="40.8889" fill="#E5E5E5"></circle>
+          </svg>
+        </div>
+      </div>
+
+      {/* Skeleton loaders */}
+      <div className="pb-5 flex flex-col items-center gap-2">
+        <div className="h-3 bg-gray-200 rounded w-24"></div>
+        <div className="h-2.5 bg-gray-200 rounded w-16"></div>
+      </div>
+    </div>
   );
 }
 </file>
@@ -3577,6 +3531,46 @@ export function useDebounce<T>(value: T, delay: number): T {
 
   return debouncedValue;
 }
+</file>
+
+<file path="src/lib/animations.ts">
+// Animation variants for Framer Motion
+// For input field - enters from bottom, exits upward
+export const fadeOutUp = {
+  initial: { opacity: 0, y: 20 },
+  animate: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut" } },
+  exit: { opacity: 0, y: -20, transition: { duration: 0.3, ease: "easeOut" } },
+};
+
+export const fadeInUp = {
+  initial: { opacity: 0, y: 20 },
+  animate: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut" } },
+  exit: { opacity: 0, y: -20, transition: { duration: 0.3, ease: "easeOut" } },
+};
+
+export const fadeInUpWithDelay = (delay: number) => ({
+  initial: { opacity: 0, y: 20 },
+  animate: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.4, ease: "easeOut", delay },
+  },
+  exit: { opacity: 0, y: -20, transition: { duration: 0.3, ease: "easeOut" } },
+});
+
+// For cards that appear after input disappears
+export const fadeInUpDelayed = {
+  initial: { opacity: 0, y: 20 },
+  animate: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut", delay: 0.5 } },
+  exit: { opacity: 0, y: -20, transition: { duration: 0.3, ease: "easeOut" } },
+};
+
+// For initial page load animations with custom stagger timing
+export const fadeInUpStagger = (delay: number) => ({
+  initial: { opacity: 0, y: 20 },
+  animate: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut", delay } },
+  exit: { opacity: 0, y: -20, transition: { duration: 0.3, ease: "easeOut" } },
+});
 </file>
 
 <file path=".dockerignore">
@@ -3958,6 +3952,28 @@ This specification is intended for developers, QA testers, and product managers 
 - **Block Explorer URL:** https://explorer.lens.xyz
 </file>
 
+<file path="src/components/ConnectOwnerButton.tsx">
+// components/ConnectOwnerButton.tsx
+"use client";
+
+import { ConnectKitButton } from "connectkit";
+import { Button } from "./Button";
+
+export function ConnectOwnerButton() {
+  return (
+    <ConnectKitButton.Custom>
+      {({ isConnected, show, truncatedAddress, ensName }) => {
+        return (
+          <Button onClick={show} variant="primary" size="md" wide={false}>
+            {isConnected ? (ensName ?? truncatedAddress) : "Connect Wallet"}
+          </Button>
+        );
+      }}
+    </ConnectKitButton.Custom>
+  );
+}
+</file>
+
 <file path="src/contexts/LensAccountContext.tsx">
 // contexts/LensAccountContext.tsx
 "use client";
@@ -4058,120 +4074,6 @@ export const config = createConfig(
 //     config: typeof config
 //   }
 // }
-</file>
-
-<file path="src/styles/globals.css">
-@import "tailwindcss" source("../**/*.{js,ts,jsx,tsx,mdx}");
-
-:root {
-  --background: #f9f9f9;
-  --foreground: #2c2d30;
-  --card-background: #ffffff;
-  --border-subtle: #e5e5e5;
-  --text-primary: #2c2d30;
-  --text-secondary: #6b6b6b;
-  --primary: color(display-p3 0.1176470588 0.7764705882 0.6352941176);
-  --primary-dark: color(display-p3 0.0705882353 0.6941176471 0.5882352941);
-  --button-primary-bg: var(--primary);
-  --button-primary-text: #ffffff;
-  --button-secondary-bg: transparent;
-  --button-secondary-border: #d1d5db;
-  --button-secondary-text: #2c2d30;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card-background: var(--card-background);
-  --color-border-subtle: var(--border-subtle);
-  --color-text-primary: var(--text-primary);
-  --color-text-secondary: var(--text-secondary);
-  --color-primary: var(--primary);
-  --color-primary-dark: var(--primary-dark);
-  --color-button-primary-bg: var(--button-primary-bg);
-  --color-button-primary-text: var(--button-primary-text);
-  --color-button-secondary-bg: var(--button-secondary-bg);
-  --color-button-secondary-border: var(--button-secondary-border);
-  --color-button-secondary-text: var(--button-secondary-text);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-/* @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-} */
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family:
-    var(--font-geist-sans),
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    sans-serif;
-}
-
-/* 3D Transform utilities for flip card */
-.perspective-1000 {
-  perspective: 1000px;
-}
-
-.transform-style-3d {
-  transform-style: preserve-3d;
-}
-
-.backface-hidden {
-  backface-visibility: hidden;
-}
-
-.rotate-y-180 {
-  transform: rotateY(180deg);
-}
-
-/* Animation keyframes */
-@keyframes fade-out-up {
-  from {
-    opacity: 1;
-    transform: translateY(0);
-  }
-  to {
-    opacity: 0;
-    transform: translateY(-20px);
-  }
-}
-
-@keyframes fade-in-up {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* Animation utility classes */
-.animate-fade-out-up {
-  animation: fade-out-up 300ms ease-out forwards;
-}
-
-.animate-fade-in-up {
-  animation: fade-in-up 400ms ease-out forwards;
-  opacity: 0;
-}
-
-.animation-delay-200 {
-  animation-delay: 200ms;
-}
-
-.animation-delay-400 {
-  animation-delay: 400ms;
-}
 </file>
 
 <file path="next.config.ts">
@@ -4555,6 +4457,120 @@ export function QrCodeModal({ address, isOpen, onClose }: QrCodeModalProps) {
       </div>
     </div>
   );
+}
+</file>
+
+<file path="src/styles/globals.css">
+@import "tailwindcss" source("../**/*.{js,ts,jsx,tsx,mdx}");
+
+:root {
+  --background: #f9f9f9;
+  --foreground: #2c2d30;
+  --card-background: #ffffff;
+  --border-subtle: #e5e5e5;
+  --text-primary: #2c2d30;
+  --text-secondary: #6b6b6b;
+  --primary: color(display-p3 0.1176470588 0.7764705882 0.6352941176);
+  --primary-dark: color(display-p3 0.0705882353 0.6941176471 0.5882352941);
+  --button-primary-bg: var(--primary);
+  --button-primary-text: #ffffff;
+  --button-secondary-bg: transparent;
+  --button-secondary-border: #d1d5db;
+  --button-secondary-text: #2c2d30;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card-background: var(--card-background);
+  --color-border-subtle: var(--border-subtle);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-primary: var(--primary);
+  --color-primary-dark: var(--primary-dark);
+  --color-button-primary-bg: var(--button-primary-bg);
+  --color-button-primary-text: var(--button-primary-text);
+  --color-button-secondary-bg: var(--button-secondary-bg);
+  --color-button-secondary-border: var(--button-secondary-border);
+  --color-button-secondary-text: var(--button-secondary-text);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+/* @media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+} */
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family:
+    var(--font-geist-sans),
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+}
+
+/* 3D Transform utilities for flip card */
+.perspective-1000 {
+  perspective: 1000px;
+}
+
+.transform-style-3d {
+  transform-style: preserve-3d;
+}
+
+.backface-hidden {
+  backface-visibility: hidden;
+}
+
+.rotate-y-180 {
+  transform: rotateY(180deg);
+}
+
+/* Animation keyframes */
+@keyframes fade-out-up {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Animation utility classes */
+.animate-fade-out-up {
+  animation: fade-out-up 300ms ease-out forwards;
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 400ms ease-out forwards;
+  opacity: 0;
+}
+
+.animation-delay-200 {
+  animation-delay: 200ms;
+}
+
+.animation-delay-400 {
+  animation-delay: 400ms;
 }
 </file>
 
@@ -7066,57 +7082,6 @@ export function WcConnect() {
 }
 </file>
 
-<file path="package.json">
-{
-  "name": "lens-account-interface4",
-  "version": "0.1.0",
-  "private": true,
-  "scripts": {
-    "dev": "next dev --turbopack",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint",
-    "prepare": "husky",
-    "generate-llms": "repomix --include \"*.*,src\" --ignore \"llms.txt\" -o llms.txt",
-    "format": "prettier --write \"src/**/*.{js,jsx,ts,tsx,css,md,json}\"",
-    "format:check": "prettier --check \"src/**/*.{js,jsx,ts,tsx,css,md,json}\""
-  },
-  "dependencies": {
-    "@heroicons/react": "^2.2.0",
-    "@reown/walletkit": "^1.2.3",
-    "@tanstack/react-query": "^5.74.4",
-    "@walletconnect/core": "^2.20.0",
-    "@walletconnect/jsonrpc-utils": "^1.0.8",
-    "@walletconnect/utils": "^2.20.0",
-    "connectkit": "^1.9.0",
-    "framer-motion": "^12.23.24",
-    "next": "15.3.1",
-    "qrcode.react": "^4.2.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "viem": "^2.27.2",
-    "wagmi": "^2.14.16"
-  },
-  "devDependencies": {
-    "@eslint/eslintrc": "^3",
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "@types/webpack": "^5.28.5",
-    "@walletconnect/types": "^2.20.0",
-    "eslint": "^9",
-    "eslint-config-next": "15.3.1",
-    "husky": "^9.1.7",
-    "pino-pretty": "^13.0.0",
-    "prettier": "^3.5.3",
-    "repomix": "^0.3.2",
-    "tailwindcss": "^4",
-    "typescript": "^5"
-  }
-}
-</file>
-
 <file path="src/contexts/WalletConnectProvider.tsx">
 // src/contexts/WalletConnectProvider.tsx
 "use client";
@@ -7596,6 +7561,57 @@ export const LOCAL_STORAGE_KEYS = {
   EXPECTED_OWNER_ADDRESS: "lensSession:expectedOwner",
   LENS_USERNAME: "lensSession:username",
 };
+</file>
+
+<file path="package.json">
+{
+  "name": "lens-account-interface4",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "prepare": "husky",
+    "generate-llms": "repomix --include \"*.*,src\" --ignore \"llms.txt\" -o llms.txt",
+    "format": "prettier --write \"src/**/*.{js,jsx,ts,tsx,css,md,json}\"",
+    "format:check": "prettier --check \"src/**/*.{js,jsx,ts,tsx,css,md,json}\""
+  },
+  "dependencies": {
+    "@heroicons/react": "^2.2.0",
+    "@reown/walletkit": "^1.2.3",
+    "@tanstack/react-query": "^5.74.4",
+    "@walletconnect/core": "^2.20.0",
+    "@walletconnect/jsonrpc-utils": "^1.0.8",
+    "@walletconnect/utils": "^2.20.0",
+    "connectkit": "^1.9.0",
+    "framer-motion": "^12.23.24",
+    "next": "15.3.1",
+    "qrcode.react": "^4.2.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "viem": "^2.27.2",
+    "wagmi": "^2.14.16"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@types/webpack": "^5.28.5",
+    "@walletconnect/types": "^2.20.0",
+    "eslint": "^9",
+    "eslint-config-next": "15.3.1",
+    "husky": "^9.1.7",
+    "pino-pretty": "^13.0.0",
+    "prettier": "^3.5.3",
+    "repomix": "^0.3.2",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}
 </file>
 
 <file path="src/components/DiscoveryForm.tsx">
@@ -8153,7 +8169,7 @@ export default function Home() {
   return (
     <main className="flex h-screen bg-background overflow-y-auto">
       {/* Left Column - Login Form */}
-      <div className="w-full lg:w-1/2 flex flex-col min-h-screen bg-white">
+      <div className="w-full lg:w-1/2 flex flex-col min-h-screen bg-white z-10 border-r border-gray-200">
         {/* Content wrapper */}
         <div className="flex-1 px-6 md:px-12 lg:px-16 flex items-center justify-center">
           <div className="max-w-lg w-full space-y-8">
@@ -8287,22 +8303,25 @@ export default function Home() {
       </div>
 
       {/* Right Column - Profile Cards Grid */}
-      <div className="hidden lg:flex w-1/2 h-screen bg-gray-50 overflow-hidden fixed right-0 top-0">
-        <div className="w-full h-full p-8">
-          <div className="grid grid-cols-3 auto-rows-fr gap-4 h-fit">
-            {/* Show discovered account in first card if available */}
-            <ProfileCard username={lensUsername || undefined} address={lensAccountAddress || undefined} owner={expectedOwner || undefined} />
-            <ProfileCard />
-            <ProfileCard />
-            <ProfileCard />
-            <ProfileCard />
-            <ProfileCard />
-            <ProfileCard />
-            <ProfileCard />
-            <ProfileCard />
-            <ProfileCard />
-            <ProfileCard />
-            <ProfileCard />
+      <div className="hidden lg:flex w-1/2 h-screen bg-gray-50 fixed right-0 top-0 scale-75">
+        <div className="w-full h-full relative">
+          <div
+            style={{
+              position: "absolute",
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              width: "fit-content",
+              height: "fit-content",
+              display: "grid",
+              gap: "2rem",
+              gridTemplateColumns: "repeat(7, 1fr)",
+            }}
+          >
+            {/* Generate 49 cards (7x7 grid) */}
+            {Array.from({ length: 49 }).map((_, index) => (
+              <ProfileCard key={index} />
+            ))}
           </div>
         </div>
       </div>
