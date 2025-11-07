@@ -7,6 +7,7 @@ import { ConnectKitProvider } from "connectkit";
 import { config } from "@/lib/wagmi";
 import React, { useState } from "react";
 import { LensAccountProvider } from "@/contexts/LensAccountContext";
+import { WalletConnectProvider } from "@/contexts/WalletConnectProvider";
 
 type Props = {
   children: React.ReactNode;
@@ -19,10 +20,8 @@ export function Providers({ children }: Props) {
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
         <ConnectKitProvider>
-          {/* Wrap with LensAccountProvider */}
           <LensAccountProvider>
-            {/* Wrap with WalletConnectProvider */}
-            {children}
+            <WalletConnectProvider>{children}</WalletConnectProvider>
           </LensAccountProvider>
         </ConnectKitProvider>
       </QueryClientProvider>
