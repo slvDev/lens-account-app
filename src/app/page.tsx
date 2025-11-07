@@ -249,7 +249,7 @@ export default function Home() {
   return (
     <main className="flex h-screen bg-background overflow-y-auto">
       {/* Left Column - Login Form */}
-      <div className="w-full lg:w-1/2 flex flex-col min-h-screen bg-white z-10 border-r border-gray-200">
+      <div className="w-full lg:w-1/2 flex flex-col min-h-screen bg-white z-10 border-r border-gray-200 shadow-lg">
         {/* Content wrapper */}
         <div className="flex-1 px-6 md:px-12 lg:px-16 flex items-center justify-center">
           <div className="max-w-lg w-full space-y-8">
@@ -393,14 +393,28 @@ export default function Home() {
               transform: "translate(-50%, -50%)",
               width: "fit-content",
               height: "fit-content",
-              display: "grid",
+              display: "flex",
+              flexDirection: "column",
               gap: "2rem",
-              gridTemplateColumns: "repeat(7, 1fr)",
             }}
           >
-            {/* Generate 49 cards (7x7 grid) */}
-            {Array.from({ length: 49 }).map((_, index) => (
-              <ProfileCard key={index} />
+            {/* Generate 7 rows, each with 7 cards and alternating animations */}
+            {Array.from({ length: 7 }).map((_, rowIndex) => (
+              <motion.div
+                key={rowIndex}
+                initial={{ x: rowIndex % 2 === 0 ? -400 : 400, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                transition={{ duration: 3, ease: [0.16, 1, 0.15, 1] }}
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(7, 1fr)",
+                  gap: "2rem",
+                }}
+              >
+                {Array.from({ length: 7 }).map((_, cardIndex) => (
+                  <ProfileCard key={cardIndex} />
+                ))}
+              </motion.div>
             ))}
           </div>
         </div>
