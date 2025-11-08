@@ -15,12 +15,14 @@ import { type Address, isAddress } from "viem";
 import { useLensAccount } from "@/contexts/LensAccountContext";
 import { LENS_ACCOUNT_ABI, LENS_CHAIN_ID, LOCAL_STORAGE_KEYS } from "@/lib/constants";
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
+import { fetchLensProfile, type LensProfileMetadata } from "@/lib/lens/service";
 
 export default function Home() {
   // Initialize state with empty defaults (server-renderable)
   const [lensAccountAddress, setLensAccountAddress] = useState<Address | "">("");
   const [lensUsername, setLensUsername] = useState<string>("");
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [profileMetadata, setProfileMetadata] = useState<LensProfileMetadata | null>(null);
 
   const [expectedOwner, setExpectedOwner] = useState<Address | null>(null);
   const [ownerFetchError, setOwnerFetchError] = useState<string | null>(null);
@@ -52,7 +54,6 @@ export default function Home() {
 
   // Updated handler for DiscoveryForm callback
   const handleAccountDetailsFound = (details: { address: Address | ""; username: string }) => {
-    console.log("Account Details Updated in Parent:", details);
     setLensAccountAddress(details.address);
     setLensUsername(details.username);
     setExpectedOwner(null);
@@ -81,7 +82,6 @@ export default function Home() {
     if (ownerData) {
       setExpectedOwner(ownerData);
       setOwnerFetchError(null);
-      console.log("Fetched Expected Owner:", ownerData);
     }
   }, [ownerData]);
 
@@ -98,20 +98,16 @@ export default function Home() {
 
   // Session Restore Effect
   useEffect(() => {
-    console.log("Session Restore Check Effect: Running...");
     // Prevent restore logic while connection is initializing/reconnecting
     if (isConnecting || isReconnecting || status !== "connected") {
-      console.log("Session Restore Check Effect: Waiting for connection to settle...");
       return;
     }
 
     // Only attempt restore if the wallet is definitively connected
     if (!connectedAddress) {
-      console.log("Session Restore Check Effect: Wallet not connected, skipping restore.");
       // Ensure local storage is cleared if wallet is disconnected but data exists
       try {
         if (localStorage.getItem(LOCAL_STORAGE_KEYS.LENS_ACCOUNT_ADDRESS)) {
-          console.log("Session Restore Check Effect: Clearing stale localStorage data as wallet is disconnected.");
           localStorage.removeItem(LOCAL_STORAGE_KEYS.LENS_ACCOUNT_ADDRESS);
           localStorage.removeItem(LOCAL_STORAGE_KEYS.EXPECTED_OWNER_ADDRESS);
           localStorage.removeItem(LOCAL_STORAGE_KEYS.LENS_USERNAME);
@@ -130,9 +126,8 @@ export default function Home() {
       storedLensAddress = localStorage.getItem(LOCAL_STORAGE_KEYS.LENS_ACCOUNT_ADDRESS) as Address | null;
       storedOwner = localStorage.getItem(LOCAL_STORAGE_KEYS.EXPECTED_OWNER_ADDRESS) as Address | null;
       storedUsername = localStorage.getItem(LOCAL_STORAGE_KEYS.LENS_USERNAME);
-      console.log("Session Restore Check Effect: Found stored data:", { storedLensAddress, storedOwner, storedUsername });
     } catch (error) {
-      console.error("Session Restore Check Effect: Failed to read session from localStorage:", error);
+      console.error("Failed to read session from localStorage:", error);
       return;
     }
 
@@ -146,7 +141,6 @@ export default function Home() {
     ) {
       // Check chain ID
       if (connectedChainId !== LENS_CHAIN_ID) {
-        console.log("Session Restore Check Effect: Wallet connected but on wrong chain. Waiting for switch.");
         setVerificationError("Previous session found. Please switch to the Lens Chain.");
         setLensAccountAddress(storedLensAddress);
         setLensUsername(storedUsername || "");
@@ -154,16 +148,16 @@ export default function Home() {
         return;
       }
 
-      console.log("Session Restore Check Effect: Valid session found, wallet connected correctly. Restoring session...");
       setVerifiedAccount(storedLensAddress, connectedAddress);
       setLensAccountAddress(storedLensAddress);
       setLensUsername(storedUsername || "");
       setExpectedOwner(storedOwner);
       setVerificationError(null);
+      setIsAuthenticated(true);
 
-      setIsAuthenticated(true); // Set authenticated instead of routing
+      // Fetch profile data from Lens API
+      fetchProfileMetadata(storedUsername || "", storedLensAddress);
     } else {
-      console.log("Session Restore Check Effect: No valid stored session found or owner mismatch.");
       try {
         localStorage.removeItem(LOCAL_STORAGE_KEYS.LENS_ACCOUNT_ADDRESS);
         localStorage.removeItem(LOCAL_STORAGE_KEYS.EXPECTED_OWNER_ADDRESS);
@@ -187,22 +181,22 @@ export default function Home() {
     }
 
     if (connectedAddress.toLowerCase() === expectedOwner.toLowerCase()) {
-      console.log("Owner verified! Storing session...");
       setVerificationError(null);
 
       try {
         localStorage.setItem(LOCAL_STORAGE_KEYS.LENS_ACCOUNT_ADDRESS, lensAccountAddress);
         localStorage.setItem(LOCAL_STORAGE_KEYS.EXPECTED_OWNER_ADDRESS, expectedOwner);
         localStorage.setItem(LOCAL_STORAGE_KEYS.LENS_USERNAME, lensUsername || "");
-        console.log("Session data stored in localStorage");
       } catch (error) {
         console.error("Failed to write session to localStorage:", error);
       }
 
       setVerifiedAccount(lensAccountAddress, connectedAddress);
       setIsAuthenticated(true); // Set authenticated instead of routing
+
+      // Fetch profile data from Lens API
+      fetchProfileMetadata(lensUsername, lensAccountAddress);
     } else {
-      console.log("Owner mismatch:", { connected: connectedAddress, expected: expectedOwner });
       setVerificationError(`Incorrect owner connected. Please connect with wallet: ${expectedOwner}`);
       try {
         localStorage.removeItem(LOCAL_STORAGE_KEYS.LENS_ACCOUNT_ADDRESS);
@@ -215,27 +209,14 @@ export default function Home() {
     }
   }, [connectedAddress, connectedChainId, expectedOwner, lensAccountAddress, lensUsername, isConnected, router, setVerifiedAccount, clearContext]);
 
-  // Debug: Log when cards should show/hide
-  useEffect(() => {
-    console.log("[Page] Animation state:", {
-      lensAccountAddress,
-      isAddress: isAddress(lensAccountAddress),
-      expectedOwner,
-      shouldShowCards: isAddress(lensAccountAddress),
-    });
-  }, [lensAccountAddress, expectedOwner]);
-
   const handleClear = () => {
-    console.log("[Page] Clear button clicked - starting clear sequence");
-
     // Clear all state
-    console.log("[Page] Clearing state: lensAccountAddress, lensUsername, expectedOwner");
     setLensAccountAddress("");
     setLensUsername("");
     setExpectedOwner(null);
     setOwnerFetchError(null);
     setVerificationError(null);
-    setIsAuthenticated(false); // Reset authentication
+    setIsAuthenticated(false);
 
     // Clear the form input
     if (discoveryFormRef.current) {
@@ -247,16 +228,47 @@ export default function Home() {
       localStorage.removeItem(LOCAL_STORAGE_KEYS.LENS_ACCOUNT_ADDRESS);
       localStorage.removeItem(LOCAL_STORAGE_KEYS.EXPECTED_OWNER_ADDRESS);
       localStorage.removeItem(LOCAL_STORAGE_KEYS.LENS_USERNAME);
-      console.log("[Page] localStorage cleared");
     } catch (error) {
       console.error("Failed to clear localStorage:", error);
     }
+  };
 
-    console.log("[Page] Clear complete - AnimatePresence should trigger card exit animations");
+  // Function to fetch profile metadata from Lens API
+  const fetchProfileMetadata = async (username: string, accountAddress?: Address | "") => {
+    const lensAccAddr = accountAddress || lensAccountAddress;
+
+    // Only fetch if we have a valid Lens account address
+    if (!lensAccAddr || !isAddress(lensAccAddr)) {
+      return;
+    }
+
+    try {
+      const metadata = await fetchLensProfile(lensAccAddr);
+
+      if (metadata) {
+        setProfileMetadata(metadata);
+      } else {
+        // Set basic metadata with username as fallback
+        setProfileMetadata({
+          id: username,
+          handle: username,
+          name: username,
+          avatar: undefined,
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching profile metadata:", error);
+      // Set fallback metadata on error
+      setProfileMetadata({
+        id: username,
+        handle: username,
+        name: username,
+        avatar: undefined,
+      });
+    }
   };
 
   const handleLogout = () => {
-    console.log("[Page] Logout triggered from dashboard");
     setIsAuthenticated(false);
     // Clear all state
     setLensAccountAddress("");
@@ -264,6 +276,7 @@ export default function Home() {
     setExpectedOwner(null);
     setOwnerFetchError(null);
     setVerificationError(null);
+    setProfileMetadata(null);
     // Note: localStorage clearing is handled by DashboardLeftPanel component
   };
 
@@ -366,38 +379,53 @@ export default function Home() {
       {/* Right Column - Profile Cards Grid */}
       <div className="hidden lg:flex w-1/2 h-screen bg-gray-50 fixed right-0 top-0 scale-75">
         <div className="w-full h-full relative">
-          <div
-            style={{
-              position: "absolute",
-              top: "50%",
-              left: "50%",
-              transform: "translate(-50%, -50%)",
-              width: "fit-content",
-              height: "fit-content",
-              display: "flex",
-              flexDirection: "column",
-              gap: "2rem",
-            }}
-          >
-            {/* Generate 7 rows, each with 7 cards and alternating animations */}
-            {Array.from({ length: 7 }).map((_, rowIndex) => (
-              <motion.div
-                key={rowIndex}
-                initial={{ x: rowIndex % 2 === 0 ? -400 : 400, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                transition={{ duration: 3, ease: [0.16, 1, 0.15, 1] }}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(7, 1fr)",
-                  gap: "2rem",
-                }}
-              >
-                {Array.from({ length: 7 }).map((_, cardIndex) => (
-                  <ProfileCard key={cardIndex} />
-                ))}
-              </motion.div>
-            ))}
-          </div>
+          {isAuthenticated ? (
+            // Show single ProfileCard with user data when authenticated
+            <div
+              style={{
+                position: "absolute",
+                top: "50%",
+                left: "50%",
+                transform: "translate(-50%, -50%)",
+              }}
+            >
+              <ProfileCard username={profileMetadata?.handle || lensUsername} displayName={profileMetadata?.name} avatar={profileMetadata?.avatar} />
+            </div>
+          ) : (
+            // Show anonymous cards grid when not authenticated
+            <div
+              style={{
+                position: "absolute",
+                top: "50%",
+                left: "50%",
+                transform: "translate(-50%, -50%)",
+                width: "fit-content",
+                height: "fit-content",
+                display: "flex",
+                flexDirection: "column",
+                gap: "2rem",
+              }}
+            >
+              {/* Generate 7 rows, each with 7 cards and alternating animations */}
+              {Array.from({ length: 7 }).map((_, rowIndex) => (
+                <motion.div
+                  key={rowIndex}
+                  initial={{ x: rowIndex % 2 === 0 ? -400 : 400, opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  transition={{ duration: 3, ease: [0.16, 1, 0.15, 1] }}
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(7, 1fr)",
+                    gap: "2rem",
+                  }}
+                >
+                  {Array.from({ length: 7 }).map((_, cardIndex) => (
+                    <ProfileCard key={cardIndex} />
+                  ))}
+                </motion.div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </main>
