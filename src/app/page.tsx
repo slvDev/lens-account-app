@@ -1,21 +1,20 @@
 // src/app/page.tsx
 "use client";
 
-import { DiscoveryForm } from "@/components/DiscoveryForm";
-import { ConnectOwnerButton } from "@/components/ConnectOwnerButton";
+import { DiscoveryForm, type DiscoveryFormRef } from "@/components/DiscoveryForm";
 import { ProfileCard } from "@/components/ProfileCard";
-import { Button } from "@/components/Button";
 import { DashboardLeftPanel } from "@/components/DashboardLeftPanel";
 import { LeftPanelContainer } from "@/components/layout/LeftPanelContainer";
-import { useState, useEffect } from "react";
+import { LoginHeader } from "@/components/LoginHeader";
+import { OwnerVerificationSection } from "@/components/OwnerVerificationSection";
+import { ResolvedAccountCard } from "@/components/ResolvedAccountCard";
+import { useState, useEffect, useRef } from "react";
 import { useAccount, useReadContract } from "wagmi";
 import { useRouter } from "next/navigation";
 import { type Address, isAddress } from "viem";
 import { useLensAccount } from "@/contexts/LensAccountContext";
 import { LENS_ACCOUNT_ABI, LENS_CHAIN_ID, LOCAL_STORAGE_KEYS } from "@/lib/constants";
-import { ArrowPathIcon, ExclamationTriangleIcon } from "@heroicons/react/24/outline";
-import { motion, AnimatePresence } from "framer-motion";
-import { fadeInUpWithDelay, fadeInUpStagger } from "@/lib/animations";
+import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
 
 export default function Home() {
   // Initialize state with empty defaults (server-renderable)
@@ -26,6 +25,8 @@ export default function Home() {
   const [expectedOwner, setExpectedOwner] = useState<Address | null>(null);
   const [ownerFetchError, setOwnerFetchError] = useState<string | null>(null);
   const [verificationError, setVerificationError] = useState<string | null>(null);
+
+  const discoveryFormRef = useRef<DiscoveryFormRef>(null);
 
   const { address: connectedAddress, chainId: connectedChainId, isConnected, isConnecting, isReconnecting, status } = useAccount();
   const router = useRouter();
@@ -236,6 +237,11 @@ export default function Home() {
     setVerificationError(null);
     setIsAuthenticated(false); // Reset authentication
 
+    // Clear the form input
+    if (discoveryFormRef.current) {
+      discoveryFormRef.current.reset();
+    }
+
     // Clear localStorage
     try {
       localStorage.removeItem(LOCAL_STORAGE_KEYS.LENS_ACCOUNT_ADDRESS);
@@ -266,93 +272,90 @@ export default function Home() {
       {/* Left Column - Login Form or Dashboard */}
       {!isAuthenticated ? (
         <LeftPanelContainer variant="login" animationKey="login">
-          {/* Header with logo and title */}
-          <motion.div layout className="flex flex-col items-center gap-8">
-            <motion.div layout {...fadeInUpStagger(0)} className="w-[107px] h-[69px] flex items-center justify-center">
-              <svg width="107" height="69" viewBox="0 0 107 69" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path
-                  d="M86.52 13.8071C81.5327 13.8071 77.0576 15.7971 73.6474 19.0087L73.2969 18.8303C72.5152 8.30345 64.1042 0 53.5635 0C43.0228 0 34.6118 8.30345 33.83 18.8303L33.4796 19.0087C30.0693 15.7971 25.5943 13.8071 20.607 13.8071C9.54059 13.8071 0.563477 22.9477 0.563477 34.2294C0.563477 43.974 10.0663 52.3323 12.4251 54.2538C23.5185 63.2434 37.9681 68.5 53.5635 68.5C69.1588 68.5 83.6085 63.2434 94.7018 54.2538C97.0742 52.3323 106.563 43.9877 106.563 34.2294C106.563 22.9477 97.5864 13.8071 86.5065 13.8071H86.52Z"
-                  fill="currentColor"
+          <LayoutGroup>
+            <motion.div
+              layout
+              className="w-full space-y-8"
+              transition={{
+                layout: {
+                  duration: 0.4,
+                  type: "spring",
+                  stiffness: 200,
+                  damping: 25,
+                },
+              }}
+            >
+              <LoginHeader />
+
+              {/* Form Section with layout animation */}
+              <motion.div
+                layout
+                layoutId="form-container"
+                className="w-full space-y-6"
+                transition={{
+                  layout: {
+                    duration: 0.4,
+                    type: "spring",
+                    stiffness: 200,
+                    damping: 25,
+                  },
+                }}
+              >
+                <DiscoveryForm
+                  ref={discoveryFormRef}
+                  onAccountDetailsFound={handleAccountDetailsFound}
+                  initialAddress={lensAccountAddress || ""}
+                  initialUsername={lensUsername || ""}
                 />
-              </svg>
+
+                {/* Cards with AnimatePresence for smooth entry/exit */}
+                <AnimatePresence mode="popLayout">
+                  {/* Resolved Account Card */}
+                  {lensAccountAddress && isAddress(lensAccountAddress) && !isLoadingOwner && !ownerFetchError && (
+                    <motion.div
+                      key="resolved-card"
+                      layout
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{
+                        opacity: 1,
+                        y: 0,
+                        transition: {
+                          duration: 0.3,
+                          type: "spring",
+                          stiffness: 260,
+                          damping: 20,
+                        },
+                      }}
+                      exit={{
+                        opacity: 0,
+                        y: -10,
+                        transition: {
+                          duration: 0.2,
+                        },
+                      }}
+                    >
+                      <ResolvedAccountCard username={lensUsername} address={lensAccountAddress} />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* Owner Verification Section - outside AnimatePresence for individual card animations */}
+                {lensAccountAddress && isAddress(lensAccountAddress) && (
+                  <OwnerVerificationSection
+                    lensAccountAddress={lensAccountAddress}
+                    expectedOwner={expectedOwner}
+                    isLoadingOwner={isLoadingOwner}
+                    ownerFetchError={ownerFetchError}
+                    verificationError={verificationError}
+                    isConnected={isConnected}
+                    connectedChainId={connectedChainId}
+                    lensChainId={LENS_CHAIN_ID}
+                    onClear={handleClear}
+                  />
+                )}
+              </motion.div>
             </motion.div>
-            <motion.h1 layout {...fadeInUpStagger(0.1)} className="text-4xl font-normal text-foreground tracking-tight">
-              Your account awaits.
-            </motion.h1>
-          </motion.div>
-
-          {/* Form Section */}
-          <motion.div layout {...fadeInUpStagger(0.2)} className="w-full space-y-6">
-            <DiscoveryForm
-              onAccountDetailsFound={handleAccountDetailsFound}
-              initialAddress={lensAccountAddress || ""}
-              initialUsername={lensUsername || ""}
-            />
-
-            {/* Owner Section - Only shows after account is found */}
-            <AnimatePresence mode="wait">
-              {isAddress(lensAccountAddress) && (
-                <div className="space-y-6">
-                  {isLoadingOwner && (
-                    <div className="flex items-center justify-center gap-2 text-sm font-medium text-text-secondary py-4">
-                      <ArrowPathIcon className="w-5 h-5 animate-spin" />
-                      <span>Fetching account owner...</span>
-                    </div>
-                  )}
-
-                  {ownerFetchError && !isLoadingOwner && (
-                    <div className="flex items-center justify-center gap-2 text-sm font-medium text-red-600 bg-red-50 p-4 rounded-lg border border-red-200">
-                      <ExclamationTriangleIcon className="w-5 h-5" />
-                      <span>{ownerFetchError}</span>
-                    </div>
-                  )}
-
-                  {expectedOwner && !isLoadingOwner && !ownerFetchError && (
-                    <div className="space-y-6">
-                      {/* Owner Info */}
-                      <motion.div key="owner-info" {...fadeInUpWithDelay(0.7)} className="bg-gray-50 border border-gray-200 rounded-lg p-5 space-y-3">
-                        <div className="space-y-1">
-                          <span className="text-xs font-medium text-text-secondary uppercase tracking-wide">Account Owner</span>
-                          <p className="text-xs font-mono text-text-primary break-all bg-white px-3 py-2 rounded border border-border-subtle">
-                            {expectedOwner}
-                          </p>
-                        </div>
-                        <p className="text-xs text-text-secondary">Connect with this wallet to access your account</p>
-                      </motion.div>
-
-                      {/* Button Section */}
-                      <motion.div key="buttons" {...fadeInUpWithDelay(0.9)} className="flex items-center justify-center gap-3 py-2">
-                        <Button onClick={handleClear} variant="secondary" size="md">
-                          Clear
-                        </Button>
-                        {!isConnected && <ConnectOwnerButton />}
-                        {isConnected && (
-                          <Button variant="primary" size="md" disabled>
-                            Connected
-                          </Button>
-                        )}
-                      </motion.div>
-
-                      {isConnected && connectedChainId !== LENS_CHAIN_ID && (
-                        <div className="text-center py-2">
-                          <p className="text-xs text-orange-600 bg-orange-50 px-4 py-3 rounded-lg border border-orange-200 inline-block">
-                            ⚠️ Please switch to Lens Chain in your wallet
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {verificationError && (
-                    <div className="flex items-center justify-center gap-2 text-sm font-medium text-red-600 bg-red-50 p-4 rounded-lg border border-red-200">
-                      <ExclamationTriangleIcon className="w-5 h-5" />
-                      <span>{verificationError}</span>
-                    </div>
-                  )}
-                </div>
-              )}
-            </AnimatePresence>
-          </motion.div>
+          </LayoutGroup>
         </LeftPanelContainer>
       ) : (
         <LeftPanelContainer variant="dashboard" animationKey="dashboard">
