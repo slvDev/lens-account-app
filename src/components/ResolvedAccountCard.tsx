@@ -11,20 +11,31 @@ interface ResolvedAccountCardProps {
 
 export function ResolvedAccountCard({ username, address }: ResolvedAccountCardProps) {
   return (
-    <div className="bg-gray-50 border border-green-200 rounded-lg p-5 space-y-3">
-      {username && (
-        <div className="space-y-1">
-          <span className="text-xs font-medium text-text-secondary uppercase tracking-wide">Username</span>
-          <p className="text-base font-semibold text-text-primary">{username}</p>
-        </div>
-      )}
-
-      <div className="space-y-1">
-        <span className="text-xs font-medium text-text-secondary uppercase tracking-wide">Account Address</span>
-        <p className="text-xs font-mono text-text-primary break-all bg-white px-3 py-2 rounded border border-border-subtle">{address}</p>
+    <div className="bg-white rounded-xl border border-gray-200 p-6">
+      <div className="space-y-4">
+        {username ? (
+          <>
+            <div>
+              <p className="text-2xl font-medium text-gray-900">@{username}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 mb-2">Account address</p>
+              <code className="text-xs font-mono text-gray-700 bg-gray-50 px-3 py-2 rounded-lg block truncate">{address}</code>
+            </div>
+          </>
+        ) : (
+          <>
+            <div>
+              <p className="text-sm font-medium text-gray-900">Lens Account</p>
+              <p className="text-xs text-gray-500 mt-1">No username set</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 mb-2">Account address</p>
+              <code className="text-xs font-mono text-gray-700 bg-gray-50 px-3 py-2 rounded-lg block truncate">{address}</code>
+            </div>
+          </>
+        )}
       </div>
-
-      {!username && <p className="text-xs text-text-secondary italic">No username registered for this address</p>}
     </div>
   );
 }

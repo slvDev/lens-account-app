@@ -10,10 +10,16 @@ interface OwnerInfoCardProps {
 
 export function OwnerInfoCard({ ownerAddress }: OwnerInfoCardProps) {
   return (
-    <div className="bg-gray-50 border border-gray-200 rounded-lg p-5 space-y-3">
-      <div className="space-y-1">
-        <span className="text-xs font-medium text-text-secondary uppercase tracking-wide">Expected Owner</span>
-        <p className="text-xs font-mono text-text-primary break-all bg-white px-3 py-2 rounded border border-gray-100">{ownerAddress}</p>
+    <div className="bg-white rounded-xl border border-gray-200 p-6">
+      <div className="space-y-4">
+        <div>
+          <p className="text-sm font-medium text-gray-900">Owner</p>
+          <p className="text-xs text-gray-500 mt-1">Connect with this wallet to manage your Lens account</p>
+        </div>
+
+        <div>
+          <code className="text-xs font-mono text-gray-700 bg-gray-50 px-3 py-2 rounded-lg block break-all">{ownerAddress}</code>
+        </div>
       </div>
     </div>
   );
