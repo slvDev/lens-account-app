@@ -4,7 +4,7 @@
 import { useLensAccount } from "@/contexts/LensAccountContext";
 import { useAccount, useDisconnect } from "wagmi";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { AccountTokensDisplay } from "@/components/AccountTokensDisplay";
 import { WcConnect } from "@/components/WcConnect";
 import { WcRequestDisplay } from "@/components/WcRequestDisplay";
@@ -19,19 +19,9 @@ export default function Dashboard() {
   const { isConnected } = useAccount();
   const { disconnect: disconnectOwnerWallet } = useDisconnect();
   const router = useRouter();
-  const [lensUsername, setLensUsername] = useState<string | null>(null);
   const { activeSessions } = useWalletConnect();
 
   const hasActiveSessions = Object.keys(activeSessions).length > 0;
-
-  useEffect(() => {
-    try {
-      const storedUsername = localStorage.getItem(LOCAL_STORAGE_KEYS.LENS_USERNAME);
-      setLensUsername(storedUsername);
-    } catch (error) {
-      console.error("Failed to read username from localStorage:", error);
-    }
-  }, []);
 
   useEffect(() => {
     if (!isConnected || !lensAccountAddress || !ownerAddress) {
@@ -81,7 +71,7 @@ export default function Dashboard() {
       <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
         {/* Panel 1: Account Identity */}
         <div className="col-span-1 md:col-span-2 bg-card-background p-8 rounded-lg border border-border-subtle">
-          <AccountIdentityPanel username={lensUsername} address={lensAccountAddress} />
+          <AccountIdentityPanel />
         </div>
 
         {/* Panel 2: Owner Info */}

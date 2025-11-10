@@ -3,11 +3,9 @@
 
 import { useLensAccount } from "@/contexts/LensAccountContext";
 import { useAccount } from "wagmi";
-import { useEffect, useState } from "react";
 import { AccountTokensDisplay } from "@/components/AccountTokensDisplay";
 import { WcConnect } from "@/components/WcConnect";
 import { WcRequestDisplay } from "@/components/WcRequestDisplay";
-import { LOCAL_STORAGE_KEYS } from "@/lib/constants";
 import { AccountIdentityPanel } from "@/components/dashboard/AccountIdentityPanel";
 import { OwnerPanel } from "@/components/dashboard/OwnerPanel";
 import { useWalletConnect } from "@/contexts/WalletConnectProvider";
@@ -17,19 +15,9 @@ import { DashboardHeader } from "./dashboard/DashboardHeader";
 export function DashboardLeftPanel({ onLogout }: { onLogout: () => void }) {
   const { lensAccountAddress, ownerAddress } = useLensAccount();
   const { isConnected } = useAccount();
-  const [lensUsername, setLensUsername] = useState<string | null>(null);
   const { activeSessions } = useWalletConnect();
 
   const hasActiveSessions = Object.keys(activeSessions).length > 0;
-
-  useEffect(() => {
-    try {
-      const storedUsername = localStorage.getItem(LOCAL_STORAGE_KEYS.LENS_USERNAME);
-      setLensUsername(storedUsername);
-    } catch (error) {
-      console.error("Failed to read username from localStorage:", error);
-    }
-  }, []);
 
   if (!isConnected || !lensAccountAddress || !ownerAddress) {
     return (
@@ -58,7 +46,7 @@ export function DashboardLeftPanel({ onLogout }: { onLogout: () => void }) {
       y: 0,
       transition: {
         duration: 0.4,
-        type: "spring",
+        type: "spring" as const,
         stiffness: 260,
         damping: 20,
       },
@@ -73,7 +61,7 @@ export function DashboardLeftPanel({ onLogout }: { onLogout: () => void }) {
         className="bg-white p-8 rounded-2xl border border-gray-200 shadow-lg hover:shadow-xl transition-shadow duration-200"
         variants={itemVariants}
       >
-        <AccountIdentityPanel username={lensUsername} address={lensAccountAddress} />
+        <AccountIdentityPanel />
       </motion.div>
 
       {/* Panel 2: Owner Info */}

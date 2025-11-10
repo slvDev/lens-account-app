@@ -8,7 +8,6 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   wide?: boolean;
   loading?: boolean;
   children: ReactNode;
-  asChild?: boolean;
   href?: string;
 }
 
@@ -20,7 +19,6 @@ export function Button({
   children,
   className = "",
   disabled,
-  asChild,
   href,
   ...props
 }: ButtonProps) {

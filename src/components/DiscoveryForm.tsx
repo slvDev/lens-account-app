@@ -26,7 +26,6 @@ export const DiscoveryForm = forwardRef<DiscoveryFormRef, DiscoveryFormProps>(
     // Single input state
     const [input, setInput] = useState(initialUsername || initialAddress);
     const [lookupError, setLookupError] = useState<string | null>(null);
-    const [resolvedUsername, setResolvedUsername] = useState("");
     const [resolvedAddress, setResolvedAddress] = useState<Address | "">("");
 
     // Track if we've initialized - prevents input from changing after user types
@@ -50,7 +49,6 @@ export const DiscoveryForm = forwardRef<DiscoveryFormRef, DiscoveryFormProps>(
       () => ({
         reset: () => {
           setInput("");
-          setResolvedUsername("");
           setResolvedAddress("");
           setLookupError(null);
           onAccountDetailsFound({ address: "", username: "" });
@@ -100,7 +98,6 @@ export const DiscoveryForm = forwardRef<DiscoveryFormRef, DiscoveryFormProps>(
     useEffect(() => {
       if (!debouncedInput) {
         setLookupError(null);
-        setResolvedUsername("");
         setResolvedAddress("");
         onAccountDetailsFound({ address: "", username: "" });
         return;
@@ -128,7 +125,6 @@ export const DiscoveryForm = forwardRef<DiscoveryFormRef, DiscoveryFormProps>(
         } else {
           console.log(`Found address: ${addressFromUsername}`);
           setResolvedAddress(addressFromUsername);
-          setResolvedUsername(debouncedInput);
           onAccountDetailsFound({ address: addressFromUsername, username: debouncedInput || "" });
           setLookupError(null);
         }
@@ -149,7 +145,6 @@ export const DiscoveryForm = forwardRef<DiscoveryFormRef, DiscoveryFormProps>(
     useEffect(() => {
       if (usernameFromAddress && detectedType === "address") {
         console.log(`Found username: ${usernameFromAddress}`);
-        setResolvedUsername(usernameFromAddress);
         if (isAddress(debouncedInput)) {
           setResolvedAddress(debouncedInput as Address);
           onAccountDetailsFound({ address: debouncedInput as Address, username: usernameFromAddress });
@@ -157,7 +152,6 @@ export const DiscoveryForm = forwardRef<DiscoveryFormRef, DiscoveryFormProps>(
         setLookupError(null);
       } else if (usernameError && detectedType === "address") {
         console.log("No primary username found for address or error:", usernameError.message);
-        setResolvedUsername("");
         if (isAddress(debouncedInput)) {
           setResolvedAddress(debouncedInput as Address);
           onAccountDetailsFound({ address: debouncedInput as Address, username: "" });
@@ -173,7 +167,6 @@ export const DiscoveryForm = forwardRef<DiscoveryFormRef, DiscoveryFormProps>(
       const cleanValue = e.target.value.replace(/\s+/g, "");
       setInput(cleanValue);
       setLookupError(null);
-      setResolvedUsername("");
       setResolvedAddress("");
       onAccountDetailsFound({ address: "", username: "" });
     };

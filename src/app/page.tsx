@@ -3,7 +3,6 @@
 
 import { DiscoveryForm, type DiscoveryFormRef } from "@/components/DiscoveryForm";
 import { ProfileCard } from "@/components/ProfileCard";
-import { DashboardLeftPanel } from "@/components/DashboardLeftPanel";
 import { LeftPanelContainer } from "@/components/layout/LeftPanelContainer";
 import { LoginHeader } from "@/components/LoginHeader";
 import { OwnerVerificationSection } from "@/components/OwnerVerificationSection";
@@ -14,8 +13,8 @@ import { useRouter } from "next/navigation";
 import { type Address, isAddress } from "viem";
 import { useLensAccount } from "@/contexts/LensAccountContext";
 import { LENS_ACCOUNT_ABI, LENS_CHAIN_ID, LOCAL_STORAGE_KEYS } from "@/lib/constants";
-import { motion, AnimatePresence, LayoutGroup, scale } from "framer-motion";
-import { fetchLensProfile, type LensProfileMetadata } from "@/lib/lens/service";
+import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
+import { fetchLensProfile } from "@/lib/lens/service";
 import { DashboardLeftPanelTabbed } from "@/components/DashboardLeftPanelTabbed";
 
 export default function Home() {

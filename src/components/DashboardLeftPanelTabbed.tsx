@@ -3,11 +3,10 @@
 
 import { useLensAccount } from "@/contexts/LensAccountContext";
 import { useAccount } from "wagmi";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { AccountTokensDisplay } from "@/components/AccountTokensDisplay";
 import { WcConnect } from "@/components/WcConnect";
 import { WcRequestDisplay } from "@/components/WcRequestDisplay";
-import { LOCAL_STORAGE_KEYS } from "@/lib/constants";
 import { AccountIdentityPanel } from "@/components/dashboard/AccountIdentityPanel";
 import { OwnerPanel } from "@/components/dashboard/OwnerPanel";
 import { useWalletConnect } from "@/contexts/WalletConnectProvider";
@@ -37,20 +36,10 @@ export function DashboardLeftPanelTabbed({
 }) {
   const { lensAccountAddress, ownerAddress } = useLensAccount();
   const { isConnected } = useAccount();
-  const [lensUsername, setLensUsername] = useState<string | null>(null);
   const { activeSessions } = useWalletConnect();
   const [activeTab, setActiveTab] = useState<TabId>("manage");
 
   const hasActiveSessions = Object.keys(activeSessions).length > 0;
-
-  useEffect(() => {
-    try {
-      const storedUsername = localStorage.getItem(LOCAL_STORAGE_KEYS.LENS_USERNAME);
-      setLensUsername(storedUsername);
-    } catch (error) {
-      console.error("Failed to read username from localStorage:", error);
-    }
-  }, []);
 
   if (!isConnected || !lensAccountAddress || !ownerAddress) {
     return (
