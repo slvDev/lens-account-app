@@ -14,7 +14,7 @@ import { useRouter } from "next/navigation";
 import { type Address, isAddress } from "viem";
 import { useLensAccount } from "@/contexts/LensAccountContext";
 import { LENS_ACCOUNT_ABI, LENS_CHAIN_ID, LOCAL_STORAGE_KEYS } from "@/lib/constants";
-import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
+import { motion, AnimatePresence, LayoutGroup, scale } from "framer-motion";
 import { fetchLensProfile, type LensProfileMetadata } from "@/lib/lens/service";
 import { DashboardLeftPanelTabbed } from "@/components/DashboardLeftPanelTabbed";
 
@@ -27,6 +27,9 @@ export default function Home() {
   const [expectedOwner, setExpectedOwner] = useState<Address | null>(null);
   const [ownerFetchError, setOwnerFetchError] = useState<string | null>(null);
   const [verificationError, setVerificationError] = useState<string | null>(null);
+
+  // State for right panel animation when changing owner
+  const [isChangingOwner, setIsChangingOwner] = useState<boolean>(false);
 
   const discoveryFormRef = useRef<DiscoveryFormRef>(null);
 
@@ -279,6 +282,11 @@ export default function Home() {
     // Note: localStorage clearing is handled by DashboardLeftPanel component
   };
 
+  // Callback for owner change toggle
+  const handleChangeOwnerToggle = (isChanging: boolean) => {
+    setIsChangingOwner(isChanging);
+  };
+
   return (
     <main className="flex h-screen bg-background overflow-y-auto">
       {/* Left Column - Login Form or Dashboard */}
@@ -371,7 +379,7 @@ export default function Home() {
         </LeftPanelContainer>
       ) : (
         <LeftPanelContainer variant="dashboard" animationKey="dashboard">
-          <DashboardLeftPanelTabbed onLogout={handleLogout} />
+          <DashboardLeftPanelTabbed onLogout={handleLogout} onChangeOwnerToggle={handleChangeOwnerToggle} />
         </LeftPanelContainer>
       )}
 
@@ -379,7 +387,7 @@ export default function Home() {
       <div className="hidden lg:flex w-1/2 h-screen bg-gray-50 fixed right-0 top-0 scale-75">
         <div className="w-full h-full relative">
           {isAuthenticated ? (
-            // Show single ProfileCard with user data when authenticated
+            // Show ProfileCard(s) with LayoutGroup for smooth animations
             <div
               style={{
                 position: "absolute",
@@ -388,7 +396,95 @@ export default function Home() {
                 transform: "translate(-50%, -50%)",
               }}
             >
-              <ProfileCard username={profileMetadata?.handle || lensUsername} displayName={profileMetadata?.name} avatar={profileMetadata?.avatar} />
+              <LayoutGroup>
+                <motion.div
+                  layout
+                  transition={{
+                    layout: {
+                      duration: 0.3,
+                      type: "spring",
+                      stiffness: 300,
+                      damping: 25,
+                    },
+                  }}
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: "1.5rem",
+                  }}
+                >
+                  {/* Main ProfileCard */}
+                  <motion.div
+                    layout
+                    layoutId="main-profile-card"
+                    transition={{
+                      layout: {
+                        duration: 0.3,
+                        type: "spring",
+                        stiffness: 300,
+                        damping: 25,
+                      },
+                    }}
+                    animate={{
+                      opacity: isChangingOwner ? 0.75 : 1,
+                      scale: isChangingOwner ? 0.75 : 1,
+                      transition: {
+                        duration: 0.3,
+                        type: "spring",
+                        stiffness: 300,
+                        damping: 25,
+                      },
+                    }}
+                  >
+                    <ProfileCard
+                      username={profileMetadata?.handle || lensUsername}
+                      displayName={profileMetadata?.name}
+                      avatar={profileMetadata?.avatar}
+                    />
+                  </motion.div>
+
+                  {/* Second ProfileCard appears when changing owner */}
+                  <AnimatePresence mode="popLayout">
+                    {isChangingOwner && (
+                      <motion.div
+                        layout
+                        layoutId="preview-profile-card"
+                        initial={{ opacity: 0, y: 20, scale: 0.9 }}
+                        animate={{
+                          opacity: 1,
+                          y: 0,
+                          scale: 1.2,
+                          transition: {
+                            duration: 0.3,
+                            type: "spring",
+                            stiffness: 300,
+                            damping: 25,
+                          },
+                        }}
+                        exit={{
+                          opacity: 0,
+                          scale: 0.9,
+                          transition: {
+                            duration: 0.2,
+                            ease: "easeOut",
+                          },
+                        }}
+                        transition={{
+                          layout: {
+                            duration: 0.3,
+                            type: "spring",
+                            stiffness: 300,
+                            damping: 25,
+                          },
+                        }}
+                      >
+                        <ProfileCard />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </motion.div>
+              </LayoutGroup>
             </div>
           ) : (
             // Show anonymous cards grid when not authenticated

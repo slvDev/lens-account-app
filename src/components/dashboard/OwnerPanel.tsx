@@ -12,9 +12,10 @@ import { shortAddress } from "@/lib";
 
 interface OwnerPanelProps {
   ownerAddress: Address;
+  onChangeOwnerToggle?: (isChanging: boolean) => void;
 }
 
-export function OwnerPanel({ ownerAddress }: OwnerPanelProps) {
+export function OwnerPanel({ ownerAddress, onChangeOwnerToggle }: OwnerPanelProps) {
   const [isChangingOwner, setIsChangingOwner] = useState(false);
   const [newOwner, setNewOwner] = useState("");
   const [inputError, setInputError] = useState<string | null>(null);
@@ -54,10 +55,13 @@ export function OwnerPanel({ ownerAddress }: OwnerPanelProps) {
   };
 
   const handleToggleChangeOwner = () => {
-    setIsChangingOwner(!isChangingOwner);
+    const newState = !isChangingOwner;
+    setIsChangingOwner(newState);
     setNewOwner("");
     setInputError(null);
     reset(); // Reset wagmi state on toggle
+    // Notify parent about the state change
+    onChangeOwnerToggle?.(newState);
   };
 
   const handleNewOwnerChange = (e: React.ChangeEvent<HTMLInputElement>) => {

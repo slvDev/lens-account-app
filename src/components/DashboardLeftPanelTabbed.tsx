@@ -28,7 +28,13 @@ const tabs: Tab[] = [
   { id: "dapps", label: "dApps", icon: LinkIcon },
 ];
 
-export function DashboardLeftPanelTabbed({ onLogout }: { onLogout: () => void }) {
+export function DashboardLeftPanelTabbed({
+  onLogout,
+  onChangeOwnerToggle
+}: {
+  onLogout: () => void;
+  onChangeOwnerToggle?: (isChanging: boolean) => void;
+}) {
   const { lensAccountAddress, ownerAddress } = useLensAccount();
   const { isConnected } = useAccount();
   const [lensUsername, setLensUsername] = useState<string | null>(null);
@@ -119,7 +125,7 @@ export function DashboardLeftPanelTabbed({ onLogout }: { onLogout: () => void })
 
                 {/* Owner Panel */}
                 <motion.div layout className="w-[60%]">
-                  <OwnerPanel ownerAddress={ownerAddress} />
+                  <OwnerPanel ownerAddress={ownerAddress} onChangeOwnerToggle={onChangeOwnerToggle} />
                 </motion.div>
               </motion.div>
             </LayoutGroup>
