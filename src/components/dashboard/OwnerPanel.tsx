@@ -7,6 +7,8 @@ import { DocumentDuplicateIcon, CheckIcon } from "@heroicons/react/24/outline";
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { useLensAccount } from "@/contexts/LensAccountContext";
 import { LENS_ACCOUNT_ABI, LENS_CHAIN_ID } from "@/lib/constants";
+import { motion, AnimatePresence } from "framer-motion";
+import { shortAddress } from "@/lib";
 
 interface OwnerPanelProps {
   ownerAddress: Address;
@@ -125,85 +127,168 @@ export function OwnerPanel({ ownerAddress }: OwnerPanelProps) {
   }
 
   return (
-    <div>
-      <h2 className="text-xl font-medium mb-6 text-text-primary">Account Owner</h2>
-      {/* Consistent address display */}
-      <div className="flex items-center space-x-3 bg-gray-50 p-4 rounded-lg border border-border-subtle mb-4">
-        <p className="text-sm font-mono text-text-primary break-all flex-1">{ownerAddress}</p>
-        <button
-          onClick={handleOpenExplorer}
-          title="View on Explorer"
-          className="p-2 text-text-secondary hover:text-text-primary hover:bg-gray-100 rounded-lg transition-colors duration-150"
-        >
-          <ArrowTopRightOnSquareIcon className="w-5 h-5" />
-        </button>
-        <button
-          onClick={handleCopy}
-          title={copied ? "Copied!" : "Copy Address"}
-          className={`p-2 rounded-lg transition-colors duration-150 ${
-            copied ? "text-green-600 bg-green-100 hover:bg-green-200" : "text-text-secondary hover:text-text-primary hover:bg-gray-100"
-          }`}
-        >
-          {copied ? <CheckIcon className="w-5 h-5" /> : <DocumentDuplicateIcon className="w-5 h-5" />}
-        </button>
-      </div>
-
-      {!isChangingOwner && (
-        <button
-          onClick={handleToggleChangeOwner}
-          className="text-sm font-medium text-text-primary hover:text-text-secondary transition-colors underline"
-        >
-          Change Owner
-        </button>
-      )}
-
-      {isChangingOwner && (
-        <div className="mt-6 p-5 border border-red-200 rounded-lg bg-red-50 space-y-4">
-          <div className="flex items-center text-red-700">
-            <ExclamationTriangleIcon className="w-6 h-6 mr-2" />
-            <p className="text-sm font-semibold">Danger Zone: Transfer Ownership</p>
-          </div>
-          <p className="text-xs text-red-600">
-            Warning: Transferring ownership is irreversible. Ensure the new address is correct and accessible. You will lose control of this Lens
-            Account if you proceed.
-          </p>
-          <div>
-            <label htmlFor="new-owner" className="block text-sm font-medium text-gray-700 mb-1">
-              New Owner Address
-            </label>
-            <input
-              id="new-owner"
-              name="new-owner"
-              type="text"
-              value={newOwner}
-              onChange={handleNewOwnerChange}
-              placeholder="0x..."
-              className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-1 sm:text-sm ${
-                inputError ? "border-red-500 ring-red-500" : "border-gray-300 focus:ring-red-500 focus:border-red-500"
-              } bg-white`} // Ensure bg is white
-            />
-            {inputError && <p className="mt-1 text-xs text-red-600">{inputError}</p>}
-          </div>
-          <div className="flex space-x-3">
-            <button
-              onClick={handleConfirmChangeOwner}
-              disabled={!isAddress(newOwner) || newOwner.toLowerCase() === ownerAddress.toLowerCase() || isLoading || isConfirmed}
-              className="flex-1 px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-md shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading ? "Processing..." : isConfirmed ? "Transferred" : "Confirm Change Owner"}
-            </button>
-            <button
-              onClick={handleToggleChangeOwner}
-              disabled={isLoading}
-              className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 text-sm font-medium rounded-md shadow-sm hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 disabled:opacity-50"
-            >
-              Cancel
-            </button>
-          </div>
-          {/* Display status message */}
-          <div className="min-h-[20px]">{statusMessage}</div>
+    <motion.div layout className="bg-gray-50 w-full rounded-3xl p-3">
+      <motion.div
+        layout
+        className="flex items-center gap-4 h-14"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{
+          delay: 0.1,
+          duration: 0.4,
+          type: "spring",
+          stiffness: 260,
+          damping: 20,
+          layout: {
+            duration: 0.4,
+            type: "spring",
+            stiffness: 200,
+            damping: 25,
+          },
+        }}
+      >
+        {/* Address column */}
+        <div className="flex-1 flex flex-col pl-2">
+          <p className="text-xs text-text-secondary">Owner</p>
+          <p className="text-base font-mono text-foreground select-all">{shortAddress(ownerAddress)}</p>
         </div>
-      )}
-    </div>
+
+        {/* Action buttons group */}
+        <div className="flex items-center gap-1 mt-1">
+          <motion.button
+            onClick={handleOpenExplorer}
+            title="View on Explorer"
+            className="p-2 text-text-secondary hover:text-text-primary hover:bg-white rounded-lg transition-all duration-150 hover:shadow-sm cursor-pointer"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <ArrowTopRightOnSquareIcon className="w-4 h-4" />
+          </motion.button>
+
+          <AnimatePresence mode="wait">
+            {copied ? (
+              <motion.button
+                key="check"
+                title="Copied!"
+                className="p-2 text-green-600 bg-green-50 rounded-lg cursor-pointer"
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.8, opacity: 0 }}
+                transition={{ duration: 0.2, type: "spring", stiffness: 400, damping: 15 }}
+              >
+                <motion.div
+                  initial={{ rotate: -180 }}
+                  animate={{ rotate: 0 }}
+                  transition={{ duration: 0.3, type: "spring", stiffness: 260, damping: 20 }}
+                >
+                  <CheckIcon className="w-4 h-4" />
+                </motion.div>
+              </motion.button>
+            ) : (
+              <motion.button
+                key="copy"
+                onClick={handleCopy}
+                title="Copy Address"
+                className="p-2 text-text-secondary hover:text-text-primary hover:bg-white rounded-lg transition-all duration-150 hover:shadow-sm cursor-pointer"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <DocumentDuplicateIcon className="w-4 h-4" />
+              </motion.button>
+            )}
+          </AnimatePresence>
+
+          <motion.button
+            onClick={handleToggleChangeOwner}
+            title="Change Owner"
+            className="px-3 py-1 text-xs font-medium text-orange-600 hover:text-orange-700 hover:bg-orange-50 rounded-lg transition-all duration-150 hover:shadow-sm cursor-pointer"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            {isChangingOwner ? "Cancel" : "Change"}
+          </motion.button>
+        </div>
+      </motion.div>
+
+      <AnimatePresence mode="popLayout">
+        {isChangingOwner && (
+          <motion.div
+            layout
+            className="mt-3 p-4 border border-orange-200 rounded-2xl bg-orange-50 space-y-3 overflow-hidden"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{
+              duration: 0.2,
+              layout: {
+                duration: 0.4,
+                type: "spring",
+                stiffness: 200,
+                damping: 25,
+              },
+            }}
+          >
+            <div className="flex items-center text-orange-700">
+              <ExclamationTriangleIcon className="w-5 h-5 mr-2 text-orange-600" />
+              <p className="text-xs font-semibold">Transfer Ownership - Irreversible Action</p>
+            </div>
+
+            <p className="text-xs text-orange-600">Warning: Transferring ownership is permanent. Ensure the new address is correct and accessible.</p>
+
+            <div>
+              <label htmlFor="new-owner" className="block text-xs font-medium text-text-primary mb-1">
+                New Owner Address
+              </label>
+              <input
+                id="new-owner"
+                name="new-owner"
+                type="text"
+                value={newOwner}
+                onChange={handleNewOwnerChange}
+                placeholder="0x..."
+                className={`w-full px-3 py-2 bg-white border rounded-lg text-sm text-text-primary placeholder-text-secondary focus:outline-none focus:ring-1 transition duration-200 ${
+                  inputError
+                    ? "border-red-500 focus:border-red-500 focus:ring-red-500"
+                    : "border-gray-200 focus:border-text-primary focus:ring-text-primary focus:bg-white"
+                }`}
+              />
+              <AnimatePresence>
+                {inputError && (
+                  <motion.p
+                    className="mt-1 text-xs text-red-600"
+                    initial={{ opacity: 0, y: -5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -5 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    {inputError}
+                  </motion.p>
+                )}
+              </AnimatePresence>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={handleConfirmChangeOwner}
+                disabled={!isAddress(newOwner) || newOwner.toLowerCase() === ownerAddress.toLowerCase() || isLoading || isConfirmed}
+                className="flex-1 px-4 py-2 bg-orange-600 text-white text-xs font-medium rounded-lg hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-150"
+              >
+                {isLoading ? "Processing..." : isConfirmed ? "Transferred" : "Confirm Transfer"}
+              </button>
+              <button
+                onClick={handleToggleChangeOwner}
+                disabled={isLoading}
+                className="flex-1 px-4 py-2 bg-white text-text-secondary border border-gray-200 text-xs font-medium rounded-lg hover:bg-gray-50 hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-text-primary disabled:opacity-50 transition-all duration-150"
+              >
+                Cancel
+              </button>
+            </div>
+
+            {/* Display status message */}
+            {statusMessage && <div>{statusMessage}</div>}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 }

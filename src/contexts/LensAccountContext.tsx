@@ -3,11 +3,14 @@
 
 import React, { createContext, useState, useContext, ReactNode } from "react";
 import { type Address } from "viem";
+import { type LensProfileMetadata } from "@/lib/lens/service";
 
 interface LensAccountState {
   lensAccountAddress: Address | null;
   ownerAddress: Address | null;
+  profileMetadata: LensProfileMetadata | null;
   setVerifiedAccount: (lensAddress: Address, ownerAddress: Address) => void;
+  setProfileMetadata: (metadata: LensProfileMetadata | null) => void;
   clearAccount: () => void;
 }
 
@@ -20,6 +23,7 @@ interface LensAccountProviderProps {
 export function LensAccountProvider({ children }: LensAccountProviderProps) {
   const [lensAccountAddress, setLensAccountAddress] = useState<Address | null>(null);
   const [ownerAddress, setOwnerAddress] = useState<Address | null>(null);
+  const [profileMetadata, setProfileMetadata] = useState<LensProfileMetadata | null>(null);
 
   const setVerifiedAccount = (lensAddress: Address, verifiedOwnerAddress: Address) => {
     setLensAccountAddress(lensAddress);
@@ -31,13 +35,16 @@ export function LensAccountProvider({ children }: LensAccountProviderProps) {
   const clearAccount = () => {
     setLensAccountAddress(null);
     setOwnerAddress(null);
+    setProfileMetadata(null);
     console.log("Context Updated: Account Cleared");
   };
 
   const value = {
     lensAccountAddress,
     ownerAddress,
+    profileMetadata,
     setVerifiedAccount,
+    setProfileMetadata,
     clearAccount,
   };
 

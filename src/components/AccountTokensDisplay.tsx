@@ -11,12 +11,16 @@ import { SendModal } from "@/components/modals/SendModal";
 import { ApproveModal } from "@/components/modals/ApproveModal";
 import { WrapModal } from "@/components/modals/WrapModal";
 import { UnwrapModal } from "@/components/modals/UnwrapModal";
+import { motion } from "framer-motion";
 
 // Import necessary icons from Heroicons
 import { PaperAirplaneIcon, CircleStackIcon, ArrowDownOnSquareIcon, ArrowUpOnSquareIcon } from "@heroicons/react/24/outline";
 
+// Token icon size constant
+const TOKEN_ICON_SIZE = 48;
+
 // Define color variants for buttons
-type ButtonVariant = "green" | "yellow" | "blue" | "purple" | "default";
+type ButtonVariant = "send" | "approve" | "wrap" | "unwrap";
 
 // Update ActionButtonProps to include an optional icon and variant
 interface ActionButtonProps {
@@ -27,47 +31,39 @@ interface ActionButtonProps {
   variant?: ButtonVariant;
 }
 
-// Modify ActionButton component for icon-top layout with color variants
-function ActionButton({ label, icon: Icon, onClick, disabled = false, variant = "default" }: ActionButtonProps) {
-  // Simplified minimal color classes
-  const getColorClasses = (): {
-    bg: string;
-    hoverBg: string;
-    iconColor: string;
-    textColor: string;
-    border: string;
-  } => {
-    // All variants now use the same minimal gray style for consistency
-    return {
-      bg: "bg-gray-50",
-      hoverBg: "bg-gray-100",
-      iconColor: "text-text-secondary group-hover:text-text-primary",
-      textColor: "text-text-secondary group-hover:text-text-primary",
-      border: "border-border-subtle",
-    };
+// ActionButton component with text labels
+function ActionButton({ label, icon: Icon, onClick, disabled = false, variant = "send" }: ActionButtonProps) {
+  // Define color schemes for each variant
+  const getColorClasses = () => {
+    switch (variant) {
+      case "send":
+        return "text-gray-600 hover:text-green-600 hover:text-green-700";
+      case "approve":
+        return "text-gray-600 hover:text-blue-600 hover:text-blue-700";
+      case "wrap":
+        return "text-gray-600 hover:text-purple-600 hover:text-purple-700";
+      case "unwrap":
+        return "text-gray-600 hover:text-orange-600 hover:text-orange-700";
+      default:
+        return "text-gray-600 hover:text-gray-700 hover:bg-gray-50";
+    }
   };
 
-  const colors = getColorClasses();
-
   return (
-    <button
+    <motion.button
       onClick={onClick}
       disabled={disabled}
       className={`
-        flex flex-col items-center justify-center p-2
-        text-center rounded-lg w-[70px] h-[60px]
-        ${colors.bg} hover:${colors.hoverBg}
-        border ${colors.border}
-        transition-all duration-150 ease-in-out
+        px-3 py-1 text-xs font-medium rounded-lg transition-colors duration-150 cursor-pointer
+        flex items-center gap-1
+        ${getColorClasses()}
         disabled:opacity-50 disabled:cursor-not-allowed
-        disabled:hover:scale-100
-        disabled:hover:bg-gray-50 disabled:hover:border-border-subtle
-        group
+        focus:outline-none
       `}
     >
-      <Icon className={`w-5 h-5 mb-1 ${colors.iconColor} transition-colors`} />
-      <span className={`text-[11px] font-medium ${colors.textColor} transition-colors`}>{label}</span>
-    </button>
+      <Icon className="w-3 h-3" />
+      <span>{label}</span>
+    </motion.button>
   );
 }
 
@@ -144,118 +140,186 @@ export function AccountTokensDisplay() {
     return <p className="text-text-secondary">Connect your wallet to view account balances.</p>;
   }
 
+  // Animation variants for staggered appearance
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1,
+      },
+    },
+  };
+
+  const rowVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.3,
+        type: "spring" as const,
+        stiffness: 260,
+        damping: 20,
+      },
+    },
+  };
+
   return (
-    <div className="space-y-4">
-      {isLoadingBalances && <p className="text-text-secondary text-sm">Loading balances...</p>}
+    <motion.div className="w-[70%] space-y-4 mx-auto" variants={containerVariants} initial="hidden" animate="visible">
+      {isLoadingBalances && (
+        <motion.p className="text-text-secondary text-sm" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          Loading balances...
+        </motion.p>
+      )}
 
       {/* --- Native GHO Row --- */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <a
-            href={`https://explorer.lens.xyz/address/${NATIVE_GHO_ADDRESS}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            title="View native GHO token on Lens Chain Explorer"
-            className="block hover:opacity-80 transition-opacity"
-          >
-            <Image src="/tokens/gho.svg" alt="GHO icon" width={40} height={40} className="rounded-full" unoptimized />
-          </a>
-          <div className="flex items-baseline">
-            <p className="text-2xl font-semibold text-text-primary leading-tight">{formattedNativeBalance}</p>
-            <p className="text-2xl font-normal text-text-secondary leading-tight ml-2">{lensChain.nativeCurrency.symbol}</p>
+      <motion.div className="bg-gray-50 w-full rounded-3xl p-3" variants={rowVariants}>
+        <div className="flex items-center gap-4">
+          <div className="flex-shrink-0">
+            <motion.a
+              href={`https://explorer.lens.xyz/address/${NATIVE_GHO_ADDRESS}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="View native GHO token on Lens Chain Explorer"
+              className="block"
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <Image
+                src="/tokens/gho.svg"
+                alt="GHO icon"
+                width={TOKEN_ICON_SIZE}
+                height={TOKEN_ICON_SIZE}
+                className="rounded pointer-events-none"
+                unoptimized
+              />
+            </motion.a>
+          </div>
+
+          <div className="flex-1 flex flex-col gap-2">
+            <p className="text-xs text-text-secondary">{lensChain.nativeCurrency.symbol}</p>
+            <p className="text-base font-mono text-foreground">{formattedNativeBalance}</p>
+          </div>
+
+          <div className="flex items-center gap-1">
+            <ActionButton
+              label="Wrap"
+              icon={ArrowDownOnSquareIcon}
+              variant="wrap"
+              onClick={() =>
+                handleActionClick("wrap", lensChain.nativeCurrency.symbol, undefined, lensChain.nativeCurrency.decimals, nativeBalanceData?.value)
+              }
+            />
+            <ActionButton
+              label="Send"
+              icon={PaperAirplaneIcon}
+              variant="send"
+              onClick={() =>
+                handleActionClick("send", lensChain.nativeCurrency.symbol, undefined, lensChain.nativeCurrency.decimals, nativeBalanceData?.value)
+              }
+            />
           </div>
         </div>
-        <div className="flex space-x-2">
-          <ActionButton
-            label="Wrap"
-            icon={ArrowDownOnSquareIcon}
-            variant="purple"
-            onClick={() =>
-              handleActionClick("wrap", lensChain.nativeCurrency.symbol, undefined, lensChain.nativeCurrency.decimals, nativeBalanceData?.value)
-            }
-          />
-          <ActionButton
-            label="Send"
-            icon={PaperAirplaneIcon}
-            variant="green"
-            onClick={() =>
-              handleActionClick("send", lensChain.nativeCurrency.symbol, undefined, lensChain.nativeCurrency.decimals, nativeBalanceData?.value)
-            }
-          />
-        </div>
-      </div>
+      </motion.div>
 
       {/* --- WGHO Row --- */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <a
-            href={`https://explorer.lens.xyz/address/${WGHO_TOKEN_ADDRESS}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            title="View WGHO token on Lens Chain Explorer"
-            className="block hover:opacity-80 transition-opacity"
-          >
-            <Image src="/tokens/wgho.svg" alt="WGHO icon" width={40} height={40} className="rounded-full" unoptimized />
-          </a>
-          <div className="flex items-baseline">
-            <p className="text-2xl font-semibold text-text-primary leading-tight">{formattedWghoBalance}</p>
-            <p className="text-2xl font-normal text-text-secondary leading-tight ml-2">WGHO</p>
+      <motion.div className="bg-gray-50 w-full rounded-3xl p-3" variants={rowVariants}>
+        <div className="flex items-center gap-4">
+          <div className="flex-shrink-0">
+            <motion.a
+              href={`https://explorer.lens.xyz/address/${WGHO_TOKEN_ADDRESS}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="View WGHO token on Lens Chain Explorer"
+              className="block"
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <Image
+                src="/tokens/wgho.svg"
+                alt="WGHO icon"
+                width={TOKEN_ICON_SIZE}
+                height={TOKEN_ICON_SIZE}
+                className="rounded pointer-events-none"
+                unoptimized
+              />
+            </motion.a>
+          </div>
+
+          <div className="flex-1 flex flex-col gap-2">
+            <p className="text-xs text-text-secondary">WGHO</p>
+            <p className="text-base font-mono text-foreground">{formattedWghoBalance}</p>
+          </div>
+
+          <div className="flex items-center gap-1">
+            <ActionButton
+              label="Unwrap"
+              icon={ArrowUpOnSquareIcon}
+              variant="unwrap"
+              onClick={() => handleActionClick("unwrap", "WGHO", WGHO_TOKEN_ADDRESS as Address, 18, wghoBalanceData)}
+            />
+            <ActionButton
+              label="Approve"
+              icon={CircleStackIcon}
+              variant="approve"
+              onClick={() => handleActionClick("approve", "WGHO", WGHO_TOKEN_ADDRESS as Address, 18, wghoBalanceData)}
+            />
+            <ActionButton
+              label="Send"
+              icon={PaperAirplaneIcon}
+              variant="send"
+              onClick={() => handleActionClick("send", "WGHO", WGHO_TOKEN_ADDRESS as Address, 18, wghoBalanceData)}
+            />
           </div>
         </div>
-        <div className="flex space-x-2">
-          <ActionButton
-            label="Unwrap"
-            icon={ArrowUpOnSquareIcon}
-            variant="blue"
-            onClick={() => handleActionClick("unwrap", "WGHO", WGHO_TOKEN_ADDRESS as Address, 18, wghoBalanceData)}
-          />
-          <ActionButton
-            label="Approve"
-            icon={CircleStackIcon}
-            variant="yellow"
-            onClick={() => handleActionClick("approve", "WGHO", WGHO_TOKEN_ADDRESS as Address, 18, wghoBalanceData)}
-          />
-          <ActionButton
-            label="Send"
-            icon={PaperAirplaneIcon}
-            variant="green"
-            onClick={() => handleActionClick("send", "WGHO", WGHO_TOKEN_ADDRESS as Address, 18, wghoBalanceData)}
-          />
-        </div>
-      </div>
+      </motion.div>
 
       {/* --- BONSAI Row --- */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <a
-            href={`https://explorer.lens.xyz/address/${BONSAI_TOKEN_ADDRESS}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            title="View BONSAI token on Lens Chain Explorer"
-            className="block hover:opacity-80 transition-opacity"
-          >
-            <Image src="/tokens/bonsai.svg" alt="BONSAI icon" width={40} height={40} className="rounded-full object-cover" unoptimized />
-          </a>
-          <div className="flex items-baseline">
-            <p className="text-2xl font-semibold text-text-primary leading-tight">{formattedBonsaiBalance}</p>
-            <p className="text-2xl font-normal text-text-secondary leading-tight ml-2">BONSAI</p>
+      <motion.div className="bg-gray-50 w-full rounded-3xl p-3" variants={rowVariants}>
+        <div className="flex items-center gap-4">
+          <div className="flex-shrink-0">
+            <motion.a
+              href={`https://explorer.lens.xyz/address/${BONSAI_TOKEN_ADDRESS}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="View BONSAI token on Lens Chain Explorer"
+              className="block"
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <Image
+                src="/tokens/bonsai.svg"
+                alt="BONSAI icon"
+                width={TOKEN_ICON_SIZE}
+                height={TOKEN_ICON_SIZE}
+                className="rounded object-cover pointer-events-none"
+                unoptimized
+              />
+            </motion.a>
+          </div>
+
+          <div className="flex-1 flex flex-col gap-2">
+            <p className="text-xs text-text-secondary">BONSAI</p>
+            <p className="text-base font-mono text-foreground">{formattedBonsaiBalance}</p>
+          </div>
+
+          <div className="flex items-center gap-1">
+            <ActionButton
+              label="Approve"
+              icon={CircleStackIcon}
+              variant="approve"
+              onClick={() => handleActionClick("approve", "BONSAI", BONSAI_TOKEN_ADDRESS as Address, 18, bonsaiBalanceData)}
+            />
+            <ActionButton
+              label="Send"
+              icon={PaperAirplaneIcon}
+              variant="send"
+              onClick={() => handleActionClick("send", "BONSAI", BONSAI_TOKEN_ADDRESS as Address, 18, bonsaiBalanceData)}
+            />
           </div>
         </div>
-        <div className="flex space-x-2">
-          <ActionButton
-            label="Approve"
-            icon={CircleStackIcon}
-            variant="yellow"
-            onClick={() => handleActionClick("approve", "BONSAI", BONSAI_TOKEN_ADDRESS as Address, 18, bonsaiBalanceData)}
-          />
-          <ActionButton
-            label="Send"
-            icon={PaperAirplaneIcon}
-            variant="green"
-            onClick={() => handleActionClick("send", "BONSAI", BONSAI_TOKEN_ADDRESS as Address, 18, bonsaiBalanceData)}
-          />
-        </div>
-      </div>
+      </motion.div>
 
       {/* --- Render Modals (remain the same) --- */}
       {modalState.type === "send" && (
@@ -279,6 +343,6 @@ export function AccountTokensDisplay() {
       )}
       {modalState.type === "wrap" && <WrapModal isOpen={true} onClose={closeModal} balance={modalState.balance} />}
       {modalState.type === "unwrap" && <UnwrapModal isOpen={true} onClose={closeModal} balance={modalState.balance} />}
-    </div>
+    </motion.div>
   );
 }

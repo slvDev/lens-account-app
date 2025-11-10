@@ -16,13 +16,13 @@ import { useLensAccount } from "@/contexts/LensAccountContext";
 import { LENS_ACCOUNT_ABI, LENS_CHAIN_ID, LOCAL_STORAGE_KEYS } from "@/lib/constants";
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
 import { fetchLensProfile, type LensProfileMetadata } from "@/lib/lens/service";
+import { DashboardLeftPanelTabbed } from "@/components/DashboardLeftPanelTabbed";
 
 export default function Home() {
   // Initialize state with empty defaults (server-renderable)
   const [lensAccountAddress, setLensAccountAddress] = useState<Address | "">("");
   const [lensUsername, setLensUsername] = useState<string>("");
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [profileMetadata, setProfileMetadata] = useState<LensProfileMetadata | null>(null);
 
   const [expectedOwner, setExpectedOwner] = useState<Address | null>(null);
   const [ownerFetchError, setOwnerFetchError] = useState<string | null>(null);
@@ -32,7 +32,7 @@ export default function Home() {
 
   const { address: connectedAddress, chainId: connectedChainId, isConnected, isConnecting, isReconnecting, status } = useAccount();
   const router = useRouter();
-  const { setVerifiedAccount, clearAccount: clearContext } = useLensAccount();
+  const { setVerifiedAccount, setProfileMetadata, profileMetadata, clearAccount: clearContext } = useLensAccount();
 
   // New useEffect to load from localStorage after component mount
   useEffect(() => {
@@ -156,7 +156,7 @@ export default function Home() {
       setIsAuthenticated(true);
 
       // Fetch profile data from Lens API
-      fetchProfileMetadata(storedUsername || "", storedLensAddress);
+      fetchProfileMetadataAndStore(storedUsername || "", storedLensAddress);
     } else {
       try {
         localStorage.removeItem(LOCAL_STORAGE_KEYS.LENS_ACCOUNT_ADDRESS);
@@ -195,7 +195,7 @@ export default function Home() {
       setIsAuthenticated(true); // Set authenticated instead of routing
 
       // Fetch profile data from Lens API
-      fetchProfileMetadata(lensUsername, lensAccountAddress);
+      fetchProfileMetadataAndStore(lensUsername, lensAccountAddress);
     } else {
       setVerificationError(`Incorrect owner connected. Please connect with wallet: ${expectedOwner}`);
       try {
@@ -234,7 +234,7 @@ export default function Home() {
   };
 
   // Function to fetch profile metadata from Lens API
-  const fetchProfileMetadata = async (username: string, accountAddress?: Address | "") => {
+  const fetchProfileMetadataAndStore = async (username: string, accountAddress?: Address | "") => {
     const lensAccAddr = accountAddress || lensAccountAddress;
 
     // Only fetch if we have a valid Lens account address
@@ -276,7 +276,6 @@ export default function Home() {
     setExpectedOwner(null);
     setOwnerFetchError(null);
     setVerificationError(null);
-    setProfileMetadata(null);
     // Note: localStorage clearing is handled by DashboardLeftPanel component
   };
 
@@ -372,7 +371,7 @@ export default function Home() {
         </LeftPanelContainer>
       ) : (
         <LeftPanelContainer variant="dashboard" animationKey="dashboard">
-          <DashboardLeftPanel onLogout={handleLogout} />
+          <DashboardLeftPanelTabbed onLogout={handleLogout} />
         </LeftPanelContainer>
       )}
 

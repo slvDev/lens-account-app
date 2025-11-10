@@ -2,11 +2,24 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useWalletConnect } from "@/contexts/WalletConnectProvider"; // Ensure correct path
+import { useWalletConnect } from "@/contexts/WalletConnectProvider";
 import Image from "next/image";
+import { motion, AnimatePresence } from "framer-motion";
+import { StatusCard } from "@/components/shared/StatusCard";
+import { LinkIcon } from "@heroicons/react/24/outline";
+
+// Token/dApp icon size constant
+const DAPP_ICON_SIZE = 48;
 
 // Default/Fallback Icon
-const FallbackIcon = () => <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-xs">?</div>;
+const FallbackIcon = () => (
+  <div
+    className="rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-xs"
+    style={{ width: `${DAPP_ICON_SIZE}px`, height: `${DAPP_ICON_SIZE}px` }}
+  >
+    ?
+  </div>
+);
 
 // Helper function to resolve icon URL
 const resolveIconUrl = (iconPath: string | null | undefined, baseUrl: string | null | undefined): string | undefined => {
@@ -31,7 +44,7 @@ const resolveIconUrl = (iconPath: string | null | undefined, baseUrl: string | n
 };
 
 // Icon component with error handling
-const DAppIcon = ({ iconUrl, name, size = 40 }: { iconUrl?: string; name: string; size?: number }) => {
+const DAppIcon = ({ iconUrl, name }: { iconUrl?: string; name: string }) => {
   const [hasError, setHasError] = useState(false);
 
   if (!iconUrl || hasError) return <FallbackIcon />;
@@ -40,9 +53,9 @@ const DAppIcon = ({ iconUrl, name, size = 40 }: { iconUrl?: string; name: string
     <Image
       src={iconUrl}
       alt={`${name} icon`}
-      width={size}
-      height={size}
-      className="rounded-full"
+      width={DAPP_ICON_SIZE}
+      height={DAPP_ICON_SIZE}
+      className="rounded-full pointer-events-none"
       unoptimized
       onError={() => {
         console.warn("Failed to load icon:", iconUrl);
@@ -52,44 +65,53 @@ const DAppIcon = ({ iconUrl, name, size = 40 }: { iconUrl?: string; name: string
   );
 };
 
+// Animation variants for individual cards
+const cardVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.3,
+      type: "spring" as const,
+      stiffness: 260,
+      damping: 20,
+    },
+  },
+};
+
 export function WcConnect() {
-  // Destructure states from the refactored provider, including isInitializing
   const {
     activeSessions,
     pair,
     disconnect,
-    isLoading, // Use the combined loading state
+    isLoading,
     isPairing,
     error,
-    isInitialized, // Use the service readiness flag
-    pendingProposal, // Get the pending proposal
-    approveSession, // Get approve action
-    rejectSession, // Get reject action
-    isInitializing, // <<<--- ADDED isInitializing HERE ---<<<
+    isInitialized,
+    pendingProposal,
+    approveSession,
+    rejectSession,
+    isInitializing,
   } = useWalletConnect();
   const [uri, setUri] = useState("");
 
-  const activeSessionTopic = Object.keys(activeSessions)[0]; // Assuming only one session for MVP
+  const activeSessionTopic = Object.keys(activeSessions)[0];
   const connectedSession = activeSessionTopic ? activeSessions[activeSessionTopic] : null;
 
-  // --- Add this useEffect ---
   useEffect(() => {
-    // If there's no connected session (either initially or after disconnect),
-    // clear the URI input field.
     if (!connectedSession) {
       setUri("");
     }
-  }, [connectedSession]); // Run this effect when connectedSession changes
-  // -------------------------
+  }, [connectedSession]);
 
   const handleConnect = () => {
-    if (!uri || !isInitialized || isLoading) return; // Check initialization and combined loading state
+    if (!uri || !isInitialized || isLoading) return;
     pair(uri);
   };
 
   const handleDisconnect = () => {
     if (connectedSession && isInitialized && !isLoading) {
-      // Check initialization and combined loading state
       disconnect(connectedSession.topic);
     }
   };
@@ -106,11 +128,10 @@ export function WcConnect() {
     }
   };
 
-  // Display loading states more granularly if needed, otherwise use `isLoading`
   const connectButtonText = isPairing ? "Pairing..." : isLoading ? "Working..." : "Connect";
   const disconnectButtonText = isLoading ? "Working..." : "Disconnect";
-  const approveButtonText = isLoading ? "Working..." : "Approve Session";
-  const rejectButtonText = isLoading ? "Working..." : "Reject Session";
+  const approveButtonText = isLoading ? "Working..." : "Approve";
+  const rejectButtonText = isLoading ? "Working..." : "Reject";
 
   // Resolve icon URLs
   const connectedDAppIconUrl = connectedSession
@@ -122,100 +143,140 @@ export function WcConnect() {
     : undefined;
 
   return (
-    // Remove border, adjust padding and background if needed (now inside a white card)
-    <div className="space-y-4">
-      <h3 className="text-lg font-semibold text-gray-800">Connect to dApp</h3>
-
-      {/* --- Session Proposal Modal (Simplified Inline) --- */}
-      {pendingProposal && (
-        // Use softer warning style
-        <div className="p-4 border border-orange-200 bg-orange-50 rounded-lg space-y-3">
-          <p className="text-sm font-medium text-yellow-800">Connection Request from:</p>
-          <div className="flex items-center space-x-2">
-            <DAppIcon iconUrl={proposalIconUrl} name={pendingProposal.params.proposer.metadata.name} size={30} />
-            <span className="text-sm text-gray-700">{pendingProposal.params.proposer.metadata.name}</span>
-          </div>
-          {/* TODO: Display requested permissions details if needed */}
-          <div className="flex space-x-2 pt-2">
-            <button
-              onClick={handleApprove}
-              disabled={isLoading || !isInitialized}
-              className="flex-1 px-3 py-1 bg-green-500 text-white text-xs font-medium rounded-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50"
-            >
-              {approveButtonText}
-            </button>
-            <button
-              onClick={handleReject}
-              disabled={isLoading || !isInitialized}
-              className="flex-1 px-3 py-1 bg-red-500 text-white text-xs font-medium rounded-md hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50"
-            >
-              {rejectButtonText}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* --- Connected Session Display --- */}
-      {connectedSession && !pendingProposal && (
-        // Use softer success style
-        <div className="space-y-3 p-4 bg-green-50 border border-green-200 rounded-lg">
-          {/* Display connected dApp info */}
-          <p className="text-green-800 font-medium">Connected to:</p>
-          <div className="flex items-center space-x-3">
-            <DAppIcon iconUrl={connectedDAppIconUrl} name={connectedSession.peer.metadata.name} size={40} />
-            <div>
-              <p className="text-sm font-semibold text-gray-900">{connectedSession.peer.metadata.name}</p>
-              <p className="text-xs text-gray-600 break-all">{connectedSession.peer.metadata.url}</p>
-            </div>
-          </div>
-          <p className="text-xs text-gray-500">
-            Topic: <span className="font-mono break-all">{connectedSession.topic}</span>
-          </p>
-          <button
-            onClick={handleDisconnect}
-            disabled={isLoading || !isInitialized} // Use combined loading state
-            className="w-full px-4 py-2 mt-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 transition-colors"
+    <motion.div layout className="w-full space-y-4">
+      <AnimatePresence mode="wait">
+        {/* --- Session Proposal Card --- */}
+        {pendingProposal && (
+          <motion.div
+            key="proposal"
+            layout
+            className="bg-gray-50 w-full rounded-3xl p-3 border-2 border-orange-200"
+            variants={cardVariants}
+            initial="hidden"
+            animate="visible"
+            exit={{ opacity: 0, y: -20 }}
           >
-            {disconnectButtonText}
-          </button>
-        </div>
-      )}
+            <div className="flex items-center gap-4">
+              <div className="flex-shrink-0">
+                <DAppIcon iconUrl={proposalIconUrl} name={pendingProposal.params.proposer.metadata.name} />
+              </div>
+              <div className="flex-1 flex flex-col gap-1">
+                <p className="text-xs text-orange-600 font-medium">Connection Request</p>
+                <p className="text-base font-medium text-foreground">{pendingProposal.params.proposer.metadata.name}</p>
+                {pendingProposal.params.proposer.metadata.description && (
+                  <p className="text-xs text-gray-600">{pendingProposal.params.proposer.metadata.description}</p>
+                )}
+              </div>
+            </div>
+            <div className="mt-3 flex gap-2">
+              <button
+                onClick={handleApprove}
+                disabled={isLoading || !isInitialized}
+                className="flex-1 px-4 py-2 bg-green-600 text-white text-xs font-medium rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-150"
+              >
+                {approveButtonText}
+              </button>
+              <button
+                onClick={handleReject}
+                disabled={isLoading || !isInitialized}
+                className="flex-1 px-4 py-2 bg-white text-text-secondary border border-gray-200 text-xs font-medium rounded-lg hover:bg-gray-50 hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-text-primary disabled:opacity-50 transition-colors duration-150"
+              >
+                {rejectButtonText}
+              </button>
+            </div>
+          </motion.div>
+        )}
 
-      {/* --- Pairing/Connection Form --- */}
-      {!connectedSession && !pendingProposal && (
-        <div className="space-y-2">
-          <label htmlFor="wc-uri" className="block text-sm font-medium text-gray-700">
-            Paste WalletConnect URI
-          </label>
-          <div className="flex space-x-2">
-            <input
-              id="wc-uri"
-              name="wc-uri"
-              type="text"
-              value={uri}
-              onChange={(e) => setUri(e.target.value)}
-              placeholder="wc:..."
-              className="flex-grow px-4 py-2 bg-gray-50 border border-border-subtle rounded-lg shadow-sm focus:outline-none focus:ring-1 focus:ring-text-primary focus:border-text-primary focus:bg-white sm:text-sm disabled:bg-gray-100 transition-colors"
-              disabled={isLoading || !isInitialized} // Use combined loading state
-            />
-            <button
-              onClick={handleConnect}
-              disabled={!uri || isLoading || !isInitialized} // Use combined loading state
-              className="px-5 py-2 bg-button-primary-bg text-button-primary-text text-sm font-medium rounded-lg hover:bg-gray-800 focus:outline-none focus:ring-1 focus:ring-text-primary disabled:opacity-50 transition-colors"
-            >
-              {connectButtonText}
-            </button>
-          </div>
-        </div>
-      )}
+        {/* --- Connected Session Card --- */}
+        {connectedSession && !pendingProposal && (
+          <motion.div
+            key="connected"
+            layout
+            className="bg-gray-50 w-full rounded-3xl p-3 border-2 border-green-200"
+            variants={cardVariants}
+            initial="hidden"
+            animate="visible"
+            exit={{ opacity: 0, y: -20 }}
+          >
+            <div className="flex items-center gap-4">
+              <div className="flex-shrink-0">
+                <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
+                  <DAppIcon iconUrl={connectedDAppIconUrl} name={connectedSession.peer.metadata.name} />
+                </motion.div>
+              </div>
+              <div className="flex-1 flex flex-col gap-1">
+                <p className="text-xs text-green-600 font-medium">Connected to</p>
+                <p className="text-base font-medium text-foreground">{connectedSession.peer.metadata.name}</p>
+                <p className="text-xs text-gray-600 truncate">{connectedSession.peer.metadata.url}</p>
+              </div>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={handleDisconnect}
+                  disabled={isLoading || !isInitialized}
+                  className="px-3 py-1 text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {disconnectButtonText}
+                </button>
+              </div>
+            </div>
+            <div className="mt-2 pt-2 border-t border-gray-200">
+              <p className="text-xs text-gray-500">
+                Topic: <span className="font-mono text-[10px] break-all">{connectedSession.topic}</span>
+              </p>
+            </div>
+          </motion.div>
+        )}
 
-      {/* --- Status/Error Messages --- */}
-      {error && !isLoading && <p className="text-red-600 text-sm mt-2">Error: {error}</p>}
-      {isPairing && <p className="text-text-secondary text-sm mt-2">Pairing initiated, check dApp/wallet if needed...</p>}
-      {/* Check both flags here now */}
-      {!isInitialized && !isInitializing && !error && <p className="text-orange-600 text-sm mt-2">WalletConnect service not ready.</p>}
-      {/* And display initializing message correctly */}
-      {isInitializing && <p className="text-gray-500 text-sm mt-2">Initializing WalletConnect...</p>}
-    </div>
+        {/* --- Connection Form Card --- */}
+        {!connectedSession && !pendingProposal && (
+          <motion.div
+            key="form"
+            layout
+            className="bg-gray-50 w-full rounded-3xl p-3"
+            variants={cardVariants}
+            initial="hidden"
+            animate="visible"
+            exit={{ opacity: 0 }}
+          >
+            <div className="flex items-center gap-4">
+              <div className="flex-shrink-0">
+                <LinkIcon className="w-12 h-12 text-gray-400" />
+              </div>
+              <div className="flex-1 flex flex-col gap-1">
+                <p className="text-xs text-text-secondary">dApp Connection</p>
+                <p className="text-base text-foreground">No active session</p>
+              </div>
+            </div>
+            <div className="mt-3 space-y-2">
+              <input
+                id="wc-uri"
+                name="wc-uri"
+                type="text"
+                value={uri}
+                onChange={(e) => setUri(e.target.value)}
+                placeholder="Paste WalletConnect URI (wc:...)"
+                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-text-primary placeholder-text-secondary focus:outline-none focus:ring-1 focus:ring-text-primary focus:border-text-primary transition duration-200 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                disabled={isLoading || !isInitialized}
+              />
+              <button
+                onClick={handleConnect}
+                disabled={!uri || isLoading || !isInitialized}
+                className="w-full px-4 py-2 bg-button-primary-bg text-button-primary-text text-sm font-medium rounded-lg hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-text-primary disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-150"
+              >
+                {connectButtonText}
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* --- Status/Error Messages using StatusCard --- */}
+      <AnimatePresence>
+        {error && !isLoading && <StatusCard variant="error" message={`Error: ${error}`} />}
+        {isPairing && <StatusCard variant="loading" message="Pairing initiated, check dApp/wallet if needed..." />}
+        {!isInitialized && !isInitializing && !error && <StatusCard variant="warning" message="WalletConnect service not ready." />}
+        {isInitializing && <StatusCard variant="loading" message="Initializing WalletConnect..." />}
+      </AnimatePresence>
+    </motion.div>
   );
 }

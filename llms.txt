@@ -56,6 +56,7 @@ src/
   components/
     dashboard/
       AccountIdentityPanel.tsx
+      DashboardHeader.tsx
       OwnerPanel.tsx
     layout/
       LeftPanelContainer.tsx
@@ -67,11 +68,15 @@ src/
       SendModal.tsx
       UnwrapModal.tsx
       WrapModal.tsx
+    shared/
+      AddressDisplay.tsx
+      StatusCard.tsx
     AccountTokensDisplay.tsx
     Button.tsx
     ConnectionControls.tsx
     ConnectOwnerButton.tsx
     DashboardLeftPanel.tsx
+    DashboardLeftPanelTabbed.tsx
     DiscoveryForm.tsx
     LoginHeader.tsx
     OwnerInfoCard.tsx
@@ -91,6 +96,7 @@ src/
       service.ts
     animations.ts
     constants.ts
+    index.ts
     wagmi.ts
   services/
     walletConnectService.ts
@@ -114,71 +120,477 @@ tsconfig.json
 <files>
 This section contains the contents of the repository's files.
 
-<file path="src/lib/lens/client.ts">
-// src/lib/lens/client.ts
-import { PublicClient, mainnet } from "@lens-protocol/client";
+<file path="src/components/dashboard/DashboardHeader.tsx">
+"use client";
 
-// Create client without custom fragments - use SDK's built-in fragments
-export const client = PublicClient.create({
-  environment: mainnet,
-  // Add origin for browser environments
-  origin: typeof window !== "undefined" ? window.location.origin : "https://lens-account-app.vercel.app",
-});
+import React from "react";
+import { motion } from "framer-motion";
+import { ArrowLeftIcon } from "@heroicons/react/24/outline";
+import { useDisconnect } from "wagmi";
+import { useLensAccount } from "@/contexts/LensAccountContext";
+import { LOCAL_STORAGE_KEYS } from "@/lib/constants";
+
+interface DashboardHeaderProps {
+  onLogout: () => void;
+}
+
+export function DashboardHeader({ onLogout }: DashboardHeaderProps) {
+  const { disconnect: disconnectOwnerWallet } = useDisconnect();
+  const { clearAccount } = useLensAccount();
+
+  const handleLogout = () => {
+    disconnectOwnerWallet();
+    clearAccount();
+
+    // Clear localStorage on explicit logout
+    try {
+      localStorage.removeItem(LOCAL_STORAGE_KEYS.LENS_ACCOUNT_ADDRESS);
+      localStorage.removeItem(LOCAL_STORAGE_KEYS.EXPECTED_OWNER_ADDRESS);
+      localStorage.removeItem(LOCAL_STORAGE_KEYS.LENS_USERNAME);
+    } catch (error) {
+      console.error("Failed to clear localStorage on logout:", error);
+    }
+
+    onLogout();
+  };
+  const iconVariants = {
+    initial: { x: 0 },
+    hover: { x: -5 },
+  };
+
+  return (
+    <motion.header
+      className="px-6 py-4 border-b border-gray-200"
+      initial={{ opacity: 0, y: -20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, type: "spring", stiffness: 260, damping: 20 }}
+    >
+      <motion.button
+        onClick={handleLogout}
+        className="flex items-center gap-2 text-gray-400 text-sm font-medium rounded-lg hover:text-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-text-primary transition-all duration-150 cursor-pointer"
+        initial="initial"
+        whileHover="hover"
+      >
+        <motion.div className="w-4 h-4" variants={iconVariants} transition={{ type: "spring", stiffness: 400, damping: 17 }}>
+          <ArrowLeftIcon className="w-4 h-4" />
+        </motion.div>
+        Logout
+      </motion.button>
+    </motion.header>
+  );
+}
 </file>
 
-<file path="src/lib/lens/service.ts">
-// src/lib/lens/service.ts
+<file path="src/components/shared/AddressDisplay.tsx">
+"use client";
+
+import React, { useState } from "react";
 import { type Address } from "viem";
-import { fetchAccount } from "@lens-protocol/client/actions";
-import { client } from "./client";
+import { motion, AnimatePresence } from "framer-motion";
+import { DocumentDuplicateIcon, CheckIcon, QrCodeIcon, ArrowTopRightOnSquareIcon } from "@heroicons/react/24/outline";
+import { QrCodeModal } from "@/components/modals/QrCodeModal";
 
-// Profile metadata structure - only what we actually use
-export interface LensProfileMetadata {
-  id: string;
-  handle?: string;
-  name?: string;
-  avatar?: string;
+interface AddressDisplayProps {
+  address: Address;
+  showCopy?: boolean;
+  showQr?: boolean;
+  showExplorer?: boolean;
+  explorerUrl?: string;
+  className?: string;
+  label?: string;
 }
 
-/**
- * Fetches profile metadata from Lens using address (owner or account address)
- * @param address - The address (can be owner wallet or Lens account address)
- * @returns Profile metadata or null if not found
- */
-export async function fetchLensProfile(address: Address): Promise<LensProfileMetadata | null> {
-  try {
-    // Fetch account using the address
-    const result = await fetchAccount(client, {
-      address,
-    });
+export function AddressDisplay({
+  address,
+  showCopy = true,
+  showQr = true,
+  showExplorer = true,
+  explorerUrl,
+  className = "",
+  label,
+}: AddressDisplayProps) {
+  const [copied, setCopied] = useState(false);
+  const [isQrModalOpen, setIsQrModalOpen] = useState(false);
 
-    // Check if result is an error
-    if (result.isErr()) {
-      console.error("❌ [Lens SDK] Error:", result.error);
-      return null;
+  const defaultExplorerUrl = `https://explorer.lens.xyz/address/${address}`;
+  const finalExplorerUrl = explorerUrl || defaultExplorerUrl;
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(address);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy address:", err);
     }
+  };
 
-    // Unwrap the successful result
-    const account = result.value;
+  const handleOpenExplorer = () => {
+    window.open(finalExplorerUrl, "_blank");
+  };
 
-    if (!account) {
-      return null;
+  return (
+    <>
+      <motion.div
+        className={`bg-gradient-to-r from-gray-50 to-gray-100 p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200 ${className}`}
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, type: "spring", stiffness: 260, damping: 20 }}
+      >
+        {label && <p className="text-sm text-text-secondary mb-2">{label}</p>}
+
+        <div className="flex items-center space-x-2">
+          <p className="text-base font-mono text-foreground break-all flex-1 select-all">{address}</p>
+
+          {/* Action buttons group */}
+          <div className="flex items-center space-x-1">
+            {showExplorer && (
+              <motion.button
+                onClick={handleOpenExplorer}
+                title="View on Explorer"
+                className="p-2.5 text-text-secondary hover:text-text-primary hover:bg-white rounded-lg transition-all duration-150 hover:shadow-sm"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <ArrowTopRightOnSquareIcon className="w-5 h-5" />
+              </motion.button>
+            )}
+
+            {showCopy && (
+              <AnimatePresence mode="wait">
+                {copied ? (
+                  <motion.button
+                    key="check"
+                    title="Copied!"
+                    className="p-2.5 text-green-600 bg-green-50 rounded-lg"
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.8, opacity: 0 }}
+                    transition={{
+                      duration: 0.2,
+                      type: "spring",
+                      stiffness: 400,
+                      damping: 15,
+                    }}
+                  >
+                    <motion.div
+                      initial={{ rotate: -180 }}
+                      animate={{ rotate: 0 }}
+                      transition={{
+                        duration: 0.3,
+                        type: "spring",
+                        stiffness: 260,
+                        damping: 20,
+                      }}
+                    >
+                      <CheckIcon className="w-5 h-5" />
+                    </motion.div>
+                  </motion.button>
+                ) : (
+                  <motion.button
+                    key="copy"
+                    onClick={handleCopy}
+                    title="Copy Address"
+                    className="p-2.5 text-text-secondary hover:text-text-primary hover:bg-white rounded-lg transition-all duration-150 hover:shadow-sm"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <DocumentDuplicateIcon className="w-5 h-5" />
+                  </motion.button>
+                )}
+              </AnimatePresence>
+            )}
+
+            {showQr && (
+              <motion.button
+                onClick={() => setIsQrModalOpen(true)}
+                title="Show QR Code"
+                className="p-2.5 text-text-secondary hover:text-text-primary hover:bg-white rounded-lg transition-all duration-150 hover:shadow-sm"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <QrCodeIcon className="w-5 h-5" />
+              </motion.button>
+            )}
+          </div>
+        </div>
+      </motion.div>
+
+      {/* QR Modal */}
+      {showQr && <QrCodeModal address={address} isOpen={isQrModalOpen} onClose={() => setIsQrModalOpen(false)} />}
+    </>
+  );
+}
+</file>
+
+<file path="src/components/shared/StatusCard.tsx">
+"use client";
+
+import React from "react";
+import { motion } from "framer-motion";
+import { CheckCircleIcon, ExclamationTriangleIcon, InformationCircleIcon, XCircleIcon, ArrowPathIcon } from "@heroicons/react/24/solid";
+
+export type StatusCardVariant = "success" | "error" | "warning" | "info" | "loading";
+
+interface StatusCardProps {
+  variant: StatusCardVariant;
+  message: string;
+  children?: React.ReactNode;
+  className?: string;
+}
+
+export function StatusCard({ variant, message, children, className = "" }: StatusCardProps) {
+  const getStyles = () => {
+    switch (variant) {
+      case "success":
+        return {
+          bg: "bg-green-50",
+          border: "border-green-200",
+          text: "text-green-700",
+          icon: <CheckCircleIcon className="w-5 h-5 text-green-600" />,
+        };
+      case "error":
+        return {
+          bg: "bg-red-50",
+          border: "border-red-200",
+          text: "text-red-700",
+          icon: <XCircleIcon className="w-5 h-5 text-red-600" />,
+        };
+      case "warning":
+        return {
+          bg: "bg-orange-50",
+          border: "border-orange-200",
+          text: "text-orange-700",
+          icon: <ExclamationTriangleIcon className="w-5 h-5 text-orange-600" />,
+        };
+      case "info":
+        return {
+          bg: "bg-blue-50",
+          border: "border-blue-200",
+          text: "text-blue-700",
+          icon: <InformationCircleIcon className="w-5 h-5 text-blue-600" />,
+        };
+      case "loading":
+        return {
+          bg: "bg-gray-50",
+          border: "border-gray-200",
+          text: "text-gray-700",
+          icon: <ArrowPathIcon className="w-5 h-5 text-gray-600 animate-spin" />,
+        };
+      default:
+        return {
+          bg: "bg-gray-50",
+          border: "border-gray-200",
+          text: "text-gray-700",
+          icon: null,
+        };
     }
+  };
 
-    // Transform the SDK response into our metadata structure
-    const metadata: LensProfileMetadata = {
-      id: account.address?.toString() || address,
-      handle: account.username?.localName,
-      name: account.metadata?.name || undefined,
-      avatar: account.metadata?.picture || undefined,
-    };
+  const styles = getStyles();
 
-    return metadata;
-  } catch (error) {
-    console.error("❌ [Lens SDK] Unexpected error:", error);
-    return null;
+  return (
+    <motion.div
+      className={`flex items-center p-4 rounded-xl border ${styles.bg} ${styles.border} ${styles.text} ${className}`}
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      transition={{
+        duration: 0.2,
+        type: "spring",
+        stiffness: 300,
+        damping: 25,
+      }}
+    >
+      {styles.icon && <div className="mr-3 flex-shrink-0">{styles.icon}</div>}
+      <div className="flex-1">
+        <p className="font-medium">{message}</p>
+        {children && <div className="mt-2">{children}</div>}
+      </div>
+    </motion.div>
+  );
+}
+</file>
+
+<file path="src/components/DashboardLeftPanelTabbed.tsx">
+// src/components/DashboardLeftPanelTabbed.tsx
+"use client";
+
+import { useLensAccount } from "@/contexts/LensAccountContext";
+import { useAccount } from "wagmi";
+import { useEffect, useState } from "react";
+import { AccountTokensDisplay } from "@/components/AccountTokensDisplay";
+import { WcConnect } from "@/components/WcConnect";
+import { WcRequestDisplay } from "@/components/WcRequestDisplay";
+import { LOCAL_STORAGE_KEYS } from "@/lib/constants";
+import { AccountIdentityPanel } from "@/components/dashboard/AccountIdentityPanel";
+import { OwnerPanel } from "@/components/dashboard/OwnerPanel";
+import { useWalletConnect } from "@/contexts/WalletConnectProvider";
+import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
+import { DashboardHeader } from "./dashboard/DashboardHeader";
+import { UserCircleIcon, CurrencyDollarIcon, LinkIcon } from "@heroicons/react/24/outline";
+type TabId = "manage" | "balances" | "dapps";
+
+interface Tab {
+  id: TabId;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+}
+
+const tabs: Tab[] = [
+  { id: "manage", label: "Manage", icon: UserCircleIcon },
+  { id: "balances", label: "Balances", icon: CurrencyDollarIcon },
+  { id: "dapps", label: "dApps", icon: LinkIcon },
+];
+
+export function DashboardLeftPanelTabbed({ onLogout }: { onLogout: () => void }) {
+  const { lensAccountAddress, ownerAddress } = useLensAccount();
+  const { isConnected } = useAccount();
+  const [lensUsername, setLensUsername] = useState<string | null>(null);
+  const { activeSessions } = useWalletConnect();
+  const [activeTab, setActiveTab] = useState<TabId>("manage");
+
+  const hasActiveSessions = Object.keys(activeSessions).length > 0;
+
+  useEffect(() => {
+    try {
+      const storedUsername = localStorage.getItem(LOCAL_STORAGE_KEYS.LENS_USERNAME);
+      setLensUsername(storedUsername);
+    } catch (error) {
+      console.error("Failed to read username from localStorage:", error);
+    }
+  }, []);
+
+  if (!isConnected || !lensAccountAddress || !ownerAddress) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <p className="text-text-secondary">Loading or redirecting...</p>
+      </div>
+    );
   }
+
+  return (
+    <motion.div className="h-full flex flex-col gap-6" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
+      <DashboardHeader onLogout={onLogout} />
+
+      {/* Tab Navigation */}
+      <nav className="w-full flex justify-center flex-shrink-0">
+        <ul className="flex items-center" role="tablist">
+          {tabs.map((tab, index) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+
+            return (
+              <li key={tab.id} role="presentation" className="flex items-center">
+                <button
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`
+                    flex items-center gap-2 px-1 text-sm font-medium cursor-pointer
+                    transition-all duration-150
+                    ${isActive ? "text-foreground" : "text-gray-400 hover:text-gray-600"}
+                  `}
+                  role="tab"
+                  aria-selected={isActive}
+                  aria-controls={`tabpanel-${tab.id}`}
+                >
+                  <div
+                    className={`
+                    w-6 h-6 rounded-full flex items-center justify-center transition-all duration-150
+                    ${isActive ? "bg-primary" : "bg-gray-100"}
+                  `}
+                  >
+                    <Icon className={`w-4 h-4 ${isActive ? "text-white" : null}`} />
+                  </div>
+                  <span>{tab.label}</span>
+                </button>
+
+                {/* Divider */}
+                {index < tabs.length - 1 && <div className="mx-4 h-4 w-px bg-gray-300" />}
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
+
+      {/* Tab Content */}
+      <div className="flex-1 flex items-center justify-center">
+        <AnimatePresence mode="wait">
+          {activeTab === "manage" && (
+            <LayoutGroup>
+              <motion.div
+                key="manage"
+                role="tabpanel"
+                id="tabpanel-manage"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3, type: "spring", stiffness: 260, damping: 20 }}
+                className="w-full flex flex-col items-center justify-center gap-6"
+              >
+                {/* Account Identity */}
+                <motion.div layout className="w-[60%]">
+                  <AccountIdentityPanel />
+                </motion.div>
+
+                {/* Owner Panel */}
+                <motion.div layout className="w-[60%]">
+                  <OwnerPanel ownerAddress={ownerAddress} />
+                </motion.div>
+              </motion.div>
+            </LayoutGroup>
+          )}
+
+          {activeTab === "balances" && (
+            <motion.div
+              key="balances"
+              role="tabpanel"
+              id="tabpanel-balances"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3, type: "spring", stiffness: 260, damping: 20 }}
+              className="w-full flex flex-col justify-center"
+            >
+              <AccountTokensDisplay />
+            </motion.div>
+          )}
+
+          {activeTab === "dapps" && (
+            <LayoutGroup>
+              <motion.div
+                key="dapps"
+                role="tabpanel"
+                id="tabpanel-dapps"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3, type: "spring", stiffness: 260, damping: 20 }}
+                className="w-full flex flex-col items-center justify-center gap-4"
+              >
+                <motion.div layout className="w-[70%]">
+                  <WcConnect />
+                </motion.div>
+                {hasActiveSessions && (
+                  <motion.div layout className="w-[70%]">
+                    <WcRequestDisplay />
+                  </motion.div>
+                )}
+              </motion.div>
+            </LayoutGroup>
+          )}
+        </AnimatePresence>
+      </div>
+    </motion.div>
+  );
 }
+</file>
+
+<file path="src/lib/index.ts">
+import { Address } from "viem";
+
+export const shortAddress = (address: Address) => {
+  return address.slice(0, 6) + "..." + address.slice(-4);
+};
 </file>
 
 <file path="account.metadata.txt">
@@ -237,12 +649,16 @@ interface LeftPanelContainerProps {
   children: React.ReactNode;
   variant?: "login" | "dashboard";
   animationKey?: string;
+  className?: string;
   onAnimationComplete?: () => void;
 }
 
-export function LeftPanelContainer({ children, variant = "login", animationKey, onAnimationComplete }: LeftPanelContainerProps) {
+export function LeftPanelContainer({ children, variant = "login", animationKey, className, onAnimationComplete }: LeftPanelContainerProps) {
+  const baseClasses = "w-full lg:w-1/2 flex flex-col min-h-screen bg-white z-10 border-r border-gray-200 shadow-lg";
+  const containerClasses = className ? `${baseClasses} ${className}` : baseClasses;
+
   return (
-    <div className="w-full lg:w-1/2 flex flex-col min-h-screen bg-white z-10 border-r border-gray-200 shadow-lg">
+    <div className={containerClasses}>
       <AnimatePresence mode="wait">
         <motion.div
           key={animationKey || variant}
@@ -264,7 +680,7 @@ export function LeftPanelContainer({ children, variant = "login", animationKey, 
           ) : (
             <>
               {/* Dashboard variant: scrollable content */}
-              <div className="flex-1 overflow-y-auto px-6 md:px-12 lg:px-16 py-10">{children}</div>
+              <div className="flex-1 flex flex-col overflow-y-auto">{children}</div>
               <LeftPanelFooter />
             </>
           )}
@@ -422,7 +838,7 @@ export function ConnectionControls({ isConnected, connectedChainId, expectedChai
 "use client";
 
 import { useLensAccount } from "@/contexts/LensAccountContext";
-import { useAccount, useDisconnect } from "wagmi";
+import { useAccount } from "wagmi";
 import { useEffect, useState } from "react";
 import { AccountTokensDisplay } from "@/components/AccountTokensDisplay";
 import { WcConnect } from "@/components/WcConnect";
@@ -430,17 +846,13 @@ import { WcRequestDisplay } from "@/components/WcRequestDisplay";
 import { LOCAL_STORAGE_KEYS } from "@/lib/constants";
 import { AccountIdentityPanel } from "@/components/dashboard/AccountIdentityPanel";
 import { OwnerPanel } from "@/components/dashboard/OwnerPanel";
-import { ArrowRightStartOnRectangleIcon } from "@heroicons/react/24/outline";
 import { useWalletConnect } from "@/contexts/WalletConnectProvider";
+import { motion } from "framer-motion";
+import { DashboardHeader } from "./dashboard/DashboardHeader";
 
-interface DashboardLeftPanelProps {
-  onLogout: () => void;
-}
-
-export function DashboardLeftPanel({ onLogout }: DashboardLeftPanelProps) {
-  const { lensAccountAddress, ownerAddress, clearAccount } = useLensAccount();
+export function DashboardLeftPanel({ onLogout }: { onLogout: () => void }) {
+  const { lensAccountAddress, ownerAddress } = useLensAccount();
   const { isConnected } = useAccount();
-  const { disconnect: disconnectOwnerWallet } = useDisconnect();
   const [lensUsername, setLensUsername] = useState<string | null>(null);
   const { activeSessions } = useWalletConnect();
 
@@ -455,28 +867,6 @@ export function DashboardLeftPanel({ onLogout }: DashboardLeftPanelProps) {
     }
   }, []);
 
-  useEffect(() => {
-    if (!isConnected || !lensAccountAddress || !ownerAddress) {
-      clearAccount();
-      onLogout();
-    }
-  }, [isConnected, lensAccountAddress, ownerAddress, clearAccount, onLogout]);
-
-  const handleLogout = () => {
-    disconnectOwnerWallet();
-    clearAccount();
-    // Clear localStorage on explicit logout
-    try {
-      localStorage.removeItem(LOCAL_STORAGE_KEYS.LENS_ACCOUNT_ADDRESS);
-      localStorage.removeItem(LOCAL_STORAGE_KEYS.EXPECTED_OWNER_ADDRESS);
-      localStorage.removeItem(LOCAL_STORAGE_KEYS.LENS_USERNAME);
-      console.log("Cleared localStorage on logout.");
-    } catch (error) {
-      console.error("Failed to clear localStorage on logout:", error);
-    }
-    onLogout();
-  };
-
   if (!isConnected || !lensAccountAddress || !ownerAddress) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -485,51 +875,78 @@ export function DashboardLeftPanel({ onLogout }: DashboardLeftPanelProps) {
     );
   }
 
+  // Animation variants for staggered fade-in
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1,
+        delayChildren: 0.1,
+      },
+    },
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.4,
+        type: "spring",
+        stiffness: 260,
+        damping: 20,
+      },
+    },
+  };
+
   return (
-    <>
-      {/* Header Area */}
-      <div className="mb-8 flex justify-between items-center">
-        <h1 className="text-2xl md:text-3xl font-normal text-foreground tracking-tight">Lens Account Dashboard</h1>
-        <button
-          onClick={handleLogout}
-          className="flex items-center gap-2 px-4 py-2 bg-card-background border border-border-subtle text-text-primary text-sm font-medium rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-text-primary transition-colors"
+    <motion.div className="space-y-6" variants={containerVariants} initial="hidden" animate="visible">
+      <DashboardHeader onLogout={onLogout} />
+      {/* Panel 1: Account Identity */}
+      <motion.div
+        className="bg-white p-8 rounded-2xl border border-gray-200 shadow-lg hover:shadow-xl transition-shadow duration-200"
+        variants={itemVariants}
+      >
+        <AccountIdentityPanel username={lensUsername} address={lensAccountAddress} />
+      </motion.div>
+
+      {/* Panel 2: Owner Info */}
+      <motion.div
+        className="bg-white p-8 rounded-2xl border border-gray-200 shadow-lg hover:shadow-xl transition-shadow duration-200"
+        variants={itemVariants}
+      >
+        <OwnerPanel ownerAddress={ownerAddress} />
+      </motion.div>
+
+      {/* Panel 3: Balances */}
+      <motion.div
+        className="bg-white p-8 rounded-2xl border border-gray-200 shadow-lg hover:shadow-xl transition-shadow duration-200"
+        variants={itemVariants}
+      >
+        <h2 className="text-xl font-medium mb-6 text-text-primary">Account Balances</h2>
+        <AccountTokensDisplay />
+      </motion.div>
+
+      {/* Panel 4: WalletConnect Connect */}
+      <motion.div
+        className="bg-white p-8 rounded-2xl border border-gray-200 shadow-lg hover:shadow-xl transition-shadow duration-200"
+        variants={itemVariants}
+      >
+        <WcConnect />
+      </motion.div>
+
+      {/* Panel 5: WalletConnect Requests - Only show when sessions exist */}
+      {hasActiveSessions && (
+        <motion.div
+          className="bg-white p-0 rounded-2xl border border-gray-200 shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-200"
+          variants={itemVariants}
         >
-          <ArrowRightStartOnRectangleIcon className="w-4 h-4 text-text-secondary" />
-          Logout
-        </button>
-      </div>
-
-      {/* Panels in vertical stack */}
-      <div className="space-y-6">
-        {/* Panel 1: Account Identity */}
-        <div className="bg-card-background p-6 md:p-8 rounded-lg border border-border-subtle">
-          <AccountIdentityPanel username={lensUsername} address={lensAccountAddress} />
-        </div>
-
-        {/* Panel 2: Owner Info */}
-        <div className="bg-card-background p-6 md:p-8 rounded-lg border border-border-subtle">
-          <OwnerPanel ownerAddress={ownerAddress} />
-        </div>
-
-        {/* Panel 3: Balances */}
-        <div className="bg-card-background p-6 md:p-8 rounded-lg border border-border-subtle">
-          <h2 className="text-xl font-medium mb-6 text-text-primary">Account Balances</h2>
-          <AccountTokensDisplay />
-        </div>
-
-        {/* Panel 4: WalletConnect Connect */}
-        <div className="bg-card-background p-6 md:p-8 rounded-lg border border-border-subtle">
-          <WcConnect />
-        </div>
-
-        {/* Panel 5: WalletConnect Requests - Only show when sessions exist */}
-        {hasActiveSessions && (
-          <div className="bg-card-background p-0 rounded-lg border border-border-subtle overflow-hidden">
-            <WcRequestDisplay />
-          </div>
-        )}
-      </div>
-    </>
+          <WcRequestDisplay />
+        </motion.div>
+      )}
+    </motion.div>
   );
 }
 </file>
@@ -742,6 +1159,73 @@ export function useDebounce<T>(value: T, delay: number): T {
   }, [value, delay]); // Only re-call effect if value or delay changes
 
   return debouncedValue;
+}
+</file>
+
+<file path="src/lib/lens/client.ts">
+// src/lib/lens/client.ts
+import { PublicClient, mainnet } from "@lens-protocol/client";
+
+// Create client without custom fragments - use SDK's built-in fragments
+export const client = PublicClient.create({
+  environment: mainnet,
+  // Add origin for browser environments
+  origin: typeof window !== "undefined" ? window.location.origin : "https://lens-account-app.vercel.app",
+});
+</file>
+
+<file path="src/lib/lens/service.ts">
+// src/lib/lens/service.ts
+import { type Address } from "viem";
+import { fetchAccount } from "@lens-protocol/client/actions";
+import { client } from "./client";
+
+// Profile metadata structure - only what we actually use
+export interface LensProfileMetadata {
+  id: string;
+  handle?: string;
+  name?: string;
+  avatar?: string;
+}
+
+/**
+ * Fetches profile metadata from Lens using address (owner or account address)
+ * @param address - The address (can be owner wallet or Lens account address)
+ * @returns Profile metadata or null if not found
+ */
+export async function fetchLensProfile(address: Address): Promise<LensProfileMetadata | null> {
+  try {
+    // Fetch account using the address
+    const result = await fetchAccount(client, {
+      address,
+    });
+
+    // Check if result is an error
+    if (result.isErr()) {
+      console.error("❌ [Lens SDK] Error:", result.error);
+      return null;
+    }
+
+    // Unwrap the successful result
+    const account = result.value;
+
+    if (!account) {
+      return null;
+    }
+
+    // Transform the SDK response into our metadata structure
+    const metadata: LensProfileMetadata = {
+      id: account.address?.toString() || address,
+      handle: account.username?.localName,
+      name: account.metadata?.name || undefined,
+      avatar: account.metadata?.picture || undefined,
+    };
+
+    return metadata;
+  } catch (error) {
+    console.error("❌ [Lens SDK] Unexpected error:", error);
+    return null;
+  }
 }
 </file>
 
@@ -1258,11 +1742,14 @@ export function ResolvedAccountCard({ username, address }: ResolvedAccountCardPr
 
 import React, { createContext, useState, useContext, ReactNode } from "react";
 import { type Address } from "viem";
+import { type LensProfileMetadata } from "@/lib/lens/service";
 
 interface LensAccountState {
   lensAccountAddress: Address | null;
   ownerAddress: Address | null;
+  profileMetadata: LensProfileMetadata | null;
   setVerifiedAccount: (lensAddress: Address, ownerAddress: Address) => void;
+  setProfileMetadata: (metadata: LensProfileMetadata | null) => void;
   clearAccount: () => void;
 }
 
@@ -1275,6 +1762,7 @@ interface LensAccountProviderProps {
 export function LensAccountProvider({ children }: LensAccountProviderProps) {
   const [lensAccountAddress, setLensAccountAddress] = useState<Address | null>(null);
   const [ownerAddress, setOwnerAddress] = useState<Address | null>(null);
+  const [profileMetadata, setProfileMetadata] = useState<LensProfileMetadata | null>(null);
 
   const setVerifiedAccount = (lensAddress: Address, verifiedOwnerAddress: Address) => {
     setLensAccountAddress(lensAddress);
@@ -1286,13 +1774,16 @@ export function LensAccountProvider({ children }: LensAccountProviderProps) {
   const clearAccount = () => {
     setLensAccountAddress(null);
     setOwnerAddress(null);
+    setProfileMetadata(null);
     console.log("Context Updated: Account Cleared");
   };
 
   const value = {
     lensAccountAddress,
     ownerAddress,
+    profileMetadata,
     setVerifiedAccount,
+    setProfileMetadata,
     clearAccount,
   };
 
@@ -1759,85 +2250,6 @@ export function QrCodeModal({ address, isOpen, onClose }: QrCodeModalProps) {
 }
 </file>
 
-<file path="src/components/ProfileCard.tsx">
-"use client";
-
-import { motion } from "framer-motion";
-
-interface ProfileCardProps {
-  username?: string;
-  displayName?: string;
-  avatar?: string;
-}
-
-export function ProfileCard({ username, displayName, avatar }: ProfileCardProps = {}) {
-  // Determine if this is an authenticated card (has data) or anonymous
-  const hasData = username || displayName || avatar;
-  const isLarge = hasData;
-
-  // Size classes based on whether we have data
-  const sizeClasses = isLarge ? "w-[296px] h-[420px]" : "w-[215px] h-[305px]";
-
-  // Avatar size classes
-  const avatarSizeClasses = isLarge ? "w-64 h-64" : "w-48 h-48";
-
-  return (
-    <motion.div
-      className={`${sizeClasses} bg-white border border-gray-200 rounded-4xl flex flex-col relative ${hasData ? "shadow-xl" : ""}`}
-      initial={hasData ? { opacity: 0, scale: 0.9 } : undefined}
-      animate={hasData ? { opacity: 1, scale: 1 } : undefined}
-      transition={
-        hasData
-          ? {
-              duration: 0.5,
-              type: "spring",
-              stiffness: 260,
-              damping: 20,
-            }
-          : undefined
-      }
-    >
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 w-10 h-4 rounded-full bg-gray-50 border border-gray-200"></div>
-
-      {/* Avatar */}
-      <div className="flex-1 flex items-center justify-center pt-3">
-        <div className={`${avatarSizeClasses} rounded-2xl overflow-hidden`}>
-          {avatar ? (
-            <img src={avatar} alt={displayName || username || "Profile"} className="w-full h-full object-cover" />
-          ) : (
-            <svg width="192" height="192" viewBox="0 0 192 192" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect width="192" height="192" fill="#F9F9F9"></rect>
-              <circle cx="96" cy="222.222" r="88.8889" fill="#E5E5E5"></circle>
-              <circle cx="96" cy="78.2219" r="40.8889" fill="#E5E5E5"></circle>
-            </svg>
-          )}
-        </div>
-      </div>
-
-      {/* User info or skeleton */}
-      <div className="pb-6 flex flex-col items-center gap-2">
-        {hasData ? (
-          <>
-            {username && (
-              <div className="flex text-xl text-gray-900">
-                <p className="text-gray-400">@</p>
-                {username}
-              </div>
-            )}
-            {displayName && <div className="text-xl text-gray-400">{displayName}</div>}
-          </>
-        ) : (
-          <>
-            <div className="h-3.5 bg-gray-100 rounded w-32"></div>
-            <div className="h-3 bg-gray-100 rounded w-24"></div>
-          </>
-        )}
-      </div>
-    </motion.div>
-  );
-}
-</file>
-
 <file path="src/styles/globals.css">
 @import "tailwindcss" source("../**/*.{js,ts,jsx,tsx,mdx}");
 
@@ -2104,7 +2516,7 @@ export function SendModal({ isOpen, onClose, tokenSymbol, tokenAddress, decimals
           onChange={(e) => setRecipient(e.target.value.trim())}
           placeholder="0x..."
           disabled={isLoading}
-          className="w-full px-4 py-2 bg-gray-50 border border-border-subtle rounded-lg focus:outline-none focus:ring-1 focus:ring-text-primary focus:border-text-primary focus:bg-white transition duration-150 disabled:bg-gray-100"
+          className="w-full px-4 py-3 bg-gray-50 border border-border-subtle rounded-lg focus:outline-none focus:ring-1 focus:ring-text-primary focus:border-text-primary focus:bg-white transition duration-200 disabled:bg-gray-100 disabled:cursor-not-allowed"
         />
       </div>
 
@@ -2122,7 +2534,7 @@ export function SendModal({ isOpen, onClose, tokenSymbol, tokenAddress, decimals
           min="0"
           step="any"
           disabled={isLoading}
-          className="w-full px-4 py-2 bg-gray-50 border border-border-subtle rounded-lg focus:outline-none focus:ring-1 focus:ring-text-primary focus:border-text-primary focus:bg-white transition duration-150 disabled:bg-gray-100"
+          className="w-full px-4 py-3 bg-gray-50 border border-border-subtle rounded-lg focus:outline-none focus:ring-1 focus:ring-text-primary focus:border-text-primary focus:bg-white transition duration-200 disabled:bg-gray-100 disabled:cursor-not-allowed"
         />
         {balance !== undefined && (
           <p className="text-xs text-gray-500 mt-1">
@@ -2160,6 +2572,85 @@ export function SendModal({ isOpen, onClose, tokenSymbol, tokenAddress, decimals
       content={modalContent}
       actions={modalActions}
     />
+  );
+}
+</file>
+
+<file path="src/components/ProfileCard.tsx">
+"use client";
+
+import { motion } from "framer-motion";
+
+interface ProfileCardProps {
+  username?: string;
+  displayName?: string;
+  avatar?: string;
+}
+
+export function ProfileCard({ username, displayName, avatar }: ProfileCardProps = {}) {
+  // Determine if this is an authenticated card (has data) or anonymous
+  const hasData = username || displayName || avatar;
+  const isLarge = hasData;
+
+  // Size classes based on whether we have data
+  const sizeClasses = isLarge ? "w-[296px] h-[420px]" : "w-[215px] h-[305px]";
+
+  // Avatar size classes
+  const avatarSizeClasses = isLarge ? "w-64 h-64" : "w-48 h-48";
+
+  return (
+    <motion.div
+      className={`${sizeClasses} bg-white border border-gray-200 rounded-4xl flex flex-col relative ${hasData ? "shadow-xl" : ""}`}
+      initial={hasData ? { opacity: 0, scale: 0.9 } : undefined}
+      animate={hasData ? { opacity: 1, scale: 1 } : undefined}
+      transition={
+        hasData
+          ? {
+              duration: 0.5,
+              type: "spring",
+              stiffness: 260,
+              damping: 20,
+            }
+          : undefined
+      }
+    >
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 w-10 h-4 rounded-full bg-gray-50 border border-gray-200"></div>
+
+      {/* Avatar */}
+      <div className="flex-1 flex items-center justify-center pt-3">
+        <div className={`${avatarSizeClasses} rounded-2xl overflow-hidden`}>
+          {avatar ? (
+            <img src={avatar} alt={displayName || username || "Profile"} className="w-full h-full object-cover" />
+          ) : (
+            <svg width="192" height="192" viewBox="0 0 192 192" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect width="192" height="192" fill="#F9F9F9"></rect>
+              <circle cx="96" cy="222.222" r="88.8889" fill="#E5E5E5"></circle>
+              <circle cx="96" cy="78.2219" r="40.8889" fill="#E5E5E5"></circle>
+            </svg>
+          )}
+        </div>
+      </div>
+
+      {/* User info or skeleton */}
+      <div className="pb-6 flex flex-col items-center gap-2">
+        {hasData ? (
+          <>
+            {username && (
+              <div className="flex text-xl text-gray-900">
+                <p className="text-gray-400">@</p>
+                {username}
+              </div>
+            )}
+            {displayName && <div className="text-xl text-gray-400">{displayName}</div>}
+          </>
+        ) : (
+          <>
+            <div className="h-3.5 bg-gray-100 rounded w-32"></div>
+            <div className="h-3 bg-gray-100 rounded w-24"></div>
+          </>
+        )}
+      </div>
+    </motion.div>
   );
 }
 </file>
@@ -2401,6 +2892,7 @@ export function ApproveModal({ isOpen, onClose, tokenSymbol, tokenAddress, decim
 
 import React, { ReactNode, useEffect, useState } from "react";
 import { XMarkIcon, ExclamationTriangleIcon, CheckCircleIcon, ArrowPathIcon } from "@heroicons/react/24/solid";
+import { motion, AnimatePresence } from "framer-motion";
 import { type Hash } from "viem";
 
 interface BaseTxModalProps {
@@ -2465,72 +2957,117 @@ export function BaseTxModal({
     }
   };
 
-  let statusMessage = null;
-  if (isLoading) {
-    statusMessage = (
-      <div className="flex items-center justify-center text-text-secondary text-sm p-3 bg-gray-50 rounded-lg border border-border-subtle">
-        <ArrowPathIcon className="w-4 h-4 mr-1.5 animate-spin" />
-        Processing transaction... Check your wallet.
-      </div>
-    );
-  } else if (isSuccess) {
-    statusMessage = (
-      <div className="flex items-center justify-center text-green-700 text-sm p-3 bg-green-50 rounded-lg border border-green-200">
-        <CheckCircleIcon className="w-5 h-5 mr-1.5" />
-        Transaction successful!
-        {txHash && (
-          <a
-            href={`https://explorer.lens.xyz/tx/${txHash}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="ml-1.5 underline hover:text-green-800 font-medium"
-          >
-            View on Explorer
-          </a>
-        )}
-        <span className="ml-2 text-text-secondary">(Closing in {countdown}s)</span>
-      </div>
-    );
-  } else if (error) {
-    statusMessage = (
-      <div className="flex items-center justify-center text-red-700 text-sm p-3 bg-red-50 rounded-lg border border-red-200">
-        <ExclamationTriangleIcon className="w-4 h-4 mr-1" />
-        Error: {error.message?.split("(")?.[0]?.trim() || "Unknown error"} {/* Show concise error with fallback */}
-      </div>
-    );
-  }
-
   // Determine what to render in the content area
   const contentToRender = content || children;
   const actionsToRender = actions; // Actions from props or null
 
   return (
-    <div className="fixed inset-0 backdrop-blur-md bg-black/60 flex items-center justify-center z-50 p-4" onClick={handleClose}>
-      <div
-        className="bg-card-background p-8 rounded-lg border border-border-subtle relative max-w-xl w-full mx-4"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <button
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          className="fixed inset-0 backdrop-blur-md bg-black/60 flex items-center justify-center z-50 p-4"
           onClick={handleClose}
-          disabled={disableClose || isLoading}
-          className={`absolute top-4 right-4 p-1 rounded-full ${disableClose || isLoading ? "text-gray-300 cursor-not-allowed" : "text-text-secondary hover:bg-gray-100 hover:text-text-primary"} transition-colors`}
-          aria-label="Close modal"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
         >
-          <XMarkIcon className="w-6 h-6" />
-        </button>
+          <motion.div
+            className="bg-white p-8 rounded-2xl border border-gray-200 shadow-2xl relative max-w-xl w-full mx-4"
+            onClick={(e) => e.stopPropagation()}
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.95, opacity: 0 }}
+            transition={{
+              type: "spring",
+              stiffness: 300,
+              damping: 25,
+            }}
+          >
+            <motion.button
+              onClick={handleClose}
+              disabled={disableClose || isLoading}
+              className={`absolute top-6 right-6 p-2 rounded-lg ${
+                disableClose || isLoading ? "text-gray-300 cursor-not-allowed" : "text-text-secondary hover:bg-gray-100 hover:text-text-primary"
+              } transition-all duration-150`}
+              aria-label="Close modal"
+              whileHover={!disableClose && !isLoading ? { scale: 1.1 } : {}}
+              whileTap={!disableClose && !isLoading ? { scale: 0.95 } : {}}
+            >
+              <XMarkIcon className="w-5 h-5" />
+            </motion.button>
 
-        <h3 className="text-2xl font-medium mb-6 text-text-primary pr-8">{title}</h3>
+            <h3 className="text-2xl font-medium mb-6 text-foreground pr-8">{title}</h3>
 
-        {/* Modal Form Content */}
-        <div className="space-y-5 mb-5">{contentToRender}</div>
+            {/* Modal Form Content */}
+            <div className="space-y-5 mb-5">{contentToRender}</div>
 
-        {/* Status Message Area */}
-        <div className="mb-5">{statusMessage}</div>
+            {/* Status Message Area with animations */}
+            <AnimatePresence mode="wait">
+              {isLoading && (
+                <motion.div
+                  key="loading"
+                  className="flex items-center justify-center text-text-secondary text-sm p-4 bg-gray-50 rounded-xl border border-gray-200 mb-5"
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <ArrowPathIcon className="w-5 h-5 mr-2 animate-spin text-text-secondary" />
+                  <span className="font-medium">Processing transaction... Check your wallet.</span>
+                </motion.div>
+              )}
 
-        {/* Action Buttons */}
-        {actionsToRender && <div>{actionsToRender}</div>}
-      </div>
-    </div>
+              {isSuccess && (
+                <motion.div
+                  key="success"
+                  className="flex items-center justify-center text-green-700 text-sm p-4 bg-green-50 rounded-xl border border-green-200 mb-5"
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  transition={{
+                    type: "spring",
+                    stiffness: 400,
+                    damping: 20,
+                  }}
+                >
+                  <CheckCircleIcon className="w-5 h-5 mr-2 text-green-600" />
+                  <span className="font-medium">Transaction successful!</span>
+                  {txHash && (
+                    <a
+                      href={`https://explorer.lens.xyz/tx/${txHash}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="ml-2 underline underline-offset-2 hover:text-green-800 font-medium"
+                    >
+                      View on Explorer
+                    </a>
+                  )}
+                  <span className="ml-2 text-gray-500">(Closing in {countdown}s)</span>
+                </motion.div>
+              )}
+
+              {error && (
+                <motion.div
+                  key="error"
+                  className="flex items-center justify-center text-red-700 text-sm p-4 bg-red-50 rounded-xl border border-red-200 mb-5"
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -10 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <ExclamationTriangleIcon className="w-5 h-5 mr-2 text-red-600" />
+                  <span className="font-medium">Error: {error.message?.split("(")?.[0]?.trim() || "Unknown error"}</span>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Action Buttons */}
+            {actionsToRender && <div>{actionsToRender}</div>}
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 </file>
@@ -2872,12 +3409,16 @@ import { SendModal } from "@/components/modals/SendModal";
 import { ApproveModal } from "@/components/modals/ApproveModal";
 import { WrapModal } from "@/components/modals/WrapModal";
 import { UnwrapModal } from "@/components/modals/UnwrapModal";
+import { motion } from "framer-motion";
 
 // Import necessary icons from Heroicons
 import { PaperAirplaneIcon, CircleStackIcon, ArrowDownOnSquareIcon, ArrowUpOnSquareIcon } from "@heroicons/react/24/outline";
 
+// Token icon size constant
+const TOKEN_ICON_SIZE = 48;
+
 // Define color variants for buttons
-type ButtonVariant = "green" | "yellow" | "blue" | "purple" | "default";
+type ButtonVariant = "send" | "approve" | "wrap" | "unwrap";
 
 // Update ActionButtonProps to include an optional icon and variant
 interface ActionButtonProps {
@@ -2888,47 +3429,39 @@ interface ActionButtonProps {
   variant?: ButtonVariant;
 }
 
-// Modify ActionButton component for icon-top layout with color variants
-function ActionButton({ label, icon: Icon, onClick, disabled = false, variant = "default" }: ActionButtonProps) {
-  // Simplified minimal color classes
-  const getColorClasses = (): {
-    bg: string;
-    hoverBg: string;
-    iconColor: string;
-    textColor: string;
-    border: string;
-  } => {
-    // All variants now use the same minimal gray style for consistency
-    return {
-      bg: "bg-gray-50",
-      hoverBg: "bg-gray-100",
-      iconColor: "text-text-secondary group-hover:text-text-primary",
-      textColor: "text-text-secondary group-hover:text-text-primary",
-      border: "border-border-subtle",
-    };
+// ActionButton component with text labels
+function ActionButton({ label, icon: Icon, onClick, disabled = false, variant = "send" }: ActionButtonProps) {
+  // Define color schemes for each variant
+  const getColorClasses = () => {
+    switch (variant) {
+      case "send":
+        return "text-gray-600 hover:text-green-600 hover:text-green-700";
+      case "approve":
+        return "text-gray-600 hover:text-blue-600 hover:text-blue-700";
+      case "wrap":
+        return "text-gray-600 hover:text-purple-600 hover:text-purple-700";
+      case "unwrap":
+        return "text-gray-600 hover:text-orange-600 hover:text-orange-700";
+      default:
+        return "text-gray-600 hover:text-gray-700 hover:bg-gray-50";
+    }
   };
 
-  const colors = getColorClasses();
-
   return (
-    <button
+    <motion.button
       onClick={onClick}
       disabled={disabled}
       className={`
-        flex flex-col items-center justify-center p-2
-        text-center rounded-lg w-[70px] h-[60px]
-        ${colors.bg} hover:${colors.hoverBg}
-        border ${colors.border}
-        transition-all duration-150 ease-in-out
+        px-3 py-1 text-xs font-medium rounded-lg transition-colors duration-150 cursor-pointer
+        flex items-center gap-1
+        ${getColorClasses()}
         disabled:opacity-50 disabled:cursor-not-allowed
-        disabled:hover:scale-100
-        disabled:hover:bg-gray-50 disabled:hover:border-border-subtle
-        group
+        focus:outline-none
       `}
     >
-      <Icon className={`w-5 h-5 mb-1 ${colors.iconColor} transition-colors`} />
-      <span className={`text-[11px] font-medium ${colors.textColor} transition-colors`}>{label}</span>
-    </button>
+      <Icon className="w-3 h-3" />
+      <span>{label}</span>
+    </motion.button>
   );
 }
 
@@ -3005,118 +3538,186 @@ export function AccountTokensDisplay() {
     return <p className="text-text-secondary">Connect your wallet to view account balances.</p>;
   }
 
+  // Animation variants for staggered appearance
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1,
+      },
+    },
+  };
+
+  const rowVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.3,
+        type: "spring" as const,
+        stiffness: 260,
+        damping: 20,
+      },
+    },
+  };
+
   return (
-    <div className="space-y-4">
-      {isLoadingBalances && <p className="text-text-secondary text-sm">Loading balances...</p>}
+    <motion.div className="w-[70%] space-y-4 mx-auto" variants={containerVariants} initial="hidden" animate="visible">
+      {isLoadingBalances && (
+        <motion.p className="text-text-secondary text-sm" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          Loading balances...
+        </motion.p>
+      )}
 
       {/* --- Native GHO Row --- */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <a
-            href={`https://explorer.lens.xyz/address/${NATIVE_GHO_ADDRESS}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            title="View native GHO token on Lens Chain Explorer"
-            className="block hover:opacity-80 transition-opacity"
-          >
-            <Image src="/tokens/gho.svg" alt="GHO icon" width={40} height={40} className="rounded-full" unoptimized />
-          </a>
-          <div className="flex items-baseline">
-            <p className="text-2xl font-semibold text-text-primary leading-tight">{formattedNativeBalance}</p>
-            <p className="text-2xl font-normal text-text-secondary leading-tight ml-2">{lensChain.nativeCurrency.symbol}</p>
+      <motion.div className="bg-gray-50 w-full rounded-3xl p-3" variants={rowVariants}>
+        <div className="flex items-center gap-4">
+          <div className="flex-shrink-0">
+            <motion.a
+              href={`https://explorer.lens.xyz/address/${NATIVE_GHO_ADDRESS}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="View native GHO token on Lens Chain Explorer"
+              className="block"
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <Image
+                src="/tokens/gho.svg"
+                alt="GHO icon"
+                width={TOKEN_ICON_SIZE}
+                height={TOKEN_ICON_SIZE}
+                className="rounded pointer-events-none"
+                unoptimized
+              />
+            </motion.a>
+          </div>
+
+          <div className="flex-1 flex flex-col gap-2">
+            <p className="text-xs text-text-secondary">{lensChain.nativeCurrency.symbol}</p>
+            <p className="text-base font-mono text-foreground">{formattedNativeBalance}</p>
+          </div>
+
+          <div className="flex items-center gap-1">
+            <ActionButton
+              label="Wrap"
+              icon={ArrowDownOnSquareIcon}
+              variant="wrap"
+              onClick={() =>
+                handleActionClick("wrap", lensChain.nativeCurrency.symbol, undefined, lensChain.nativeCurrency.decimals, nativeBalanceData?.value)
+              }
+            />
+            <ActionButton
+              label="Send"
+              icon={PaperAirplaneIcon}
+              variant="send"
+              onClick={() =>
+                handleActionClick("send", lensChain.nativeCurrency.symbol, undefined, lensChain.nativeCurrency.decimals, nativeBalanceData?.value)
+              }
+            />
           </div>
         </div>
-        <div className="flex space-x-2">
-          <ActionButton
-            label="Wrap"
-            icon={ArrowDownOnSquareIcon}
-            variant="purple"
-            onClick={() =>
-              handleActionClick("wrap", lensChain.nativeCurrency.symbol, undefined, lensChain.nativeCurrency.decimals, nativeBalanceData?.value)
-            }
-          />
-          <ActionButton
-            label="Send"
-            icon={PaperAirplaneIcon}
-            variant="green"
-            onClick={() =>
-              handleActionClick("send", lensChain.nativeCurrency.symbol, undefined, lensChain.nativeCurrency.decimals, nativeBalanceData?.value)
-            }
-          />
-        </div>
-      </div>
+      </motion.div>
 
       {/* --- WGHO Row --- */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <a
-            href={`https://explorer.lens.xyz/address/${WGHO_TOKEN_ADDRESS}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            title="View WGHO token on Lens Chain Explorer"
-            className="block hover:opacity-80 transition-opacity"
-          >
-            <Image src="/tokens/wgho.svg" alt="WGHO icon" width={40} height={40} className="rounded-full" unoptimized />
-          </a>
-          <div className="flex items-baseline">
-            <p className="text-2xl font-semibold text-text-primary leading-tight">{formattedWghoBalance}</p>
-            <p className="text-2xl font-normal text-text-secondary leading-tight ml-2">WGHO</p>
+      <motion.div className="bg-gray-50 w-full rounded-3xl p-3" variants={rowVariants}>
+        <div className="flex items-center gap-4">
+          <div className="flex-shrink-0">
+            <motion.a
+              href={`https://explorer.lens.xyz/address/${WGHO_TOKEN_ADDRESS}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="View WGHO token on Lens Chain Explorer"
+              className="block"
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <Image
+                src="/tokens/wgho.svg"
+                alt="WGHO icon"
+                width={TOKEN_ICON_SIZE}
+                height={TOKEN_ICON_SIZE}
+                className="rounded pointer-events-none"
+                unoptimized
+              />
+            </motion.a>
+          </div>
+
+          <div className="flex-1 flex flex-col gap-2">
+            <p className="text-xs text-text-secondary">WGHO</p>
+            <p className="text-base font-mono text-foreground">{formattedWghoBalance}</p>
+          </div>
+
+          <div className="flex items-center gap-1">
+            <ActionButton
+              label="Unwrap"
+              icon={ArrowUpOnSquareIcon}
+              variant="unwrap"
+              onClick={() => handleActionClick("unwrap", "WGHO", WGHO_TOKEN_ADDRESS as Address, 18, wghoBalanceData)}
+            />
+            <ActionButton
+              label="Approve"
+              icon={CircleStackIcon}
+              variant="approve"
+              onClick={() => handleActionClick("approve", "WGHO", WGHO_TOKEN_ADDRESS as Address, 18, wghoBalanceData)}
+            />
+            <ActionButton
+              label="Send"
+              icon={PaperAirplaneIcon}
+              variant="send"
+              onClick={() => handleActionClick("send", "WGHO", WGHO_TOKEN_ADDRESS as Address, 18, wghoBalanceData)}
+            />
           </div>
         </div>
-        <div className="flex space-x-2">
-          <ActionButton
-            label="Unwrap"
-            icon={ArrowUpOnSquareIcon}
-            variant="blue"
-            onClick={() => handleActionClick("unwrap", "WGHO", WGHO_TOKEN_ADDRESS as Address, 18, wghoBalanceData)}
-          />
-          <ActionButton
-            label="Approve"
-            icon={CircleStackIcon}
-            variant="yellow"
-            onClick={() => handleActionClick("approve", "WGHO", WGHO_TOKEN_ADDRESS as Address, 18, wghoBalanceData)}
-          />
-          <ActionButton
-            label="Send"
-            icon={PaperAirplaneIcon}
-            variant="green"
-            onClick={() => handleActionClick("send", "WGHO", WGHO_TOKEN_ADDRESS as Address, 18, wghoBalanceData)}
-          />
-        </div>
-      </div>
+      </motion.div>
 
       {/* --- BONSAI Row --- */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <a
-            href={`https://explorer.lens.xyz/address/${BONSAI_TOKEN_ADDRESS}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            title="View BONSAI token on Lens Chain Explorer"
-            className="block hover:opacity-80 transition-opacity"
-          >
-            <Image src="/tokens/bonsai.svg" alt="BONSAI icon" width={40} height={40} className="rounded-full object-cover" unoptimized />
-          </a>
-          <div className="flex items-baseline">
-            <p className="text-2xl font-semibold text-text-primary leading-tight">{formattedBonsaiBalance}</p>
-            <p className="text-2xl font-normal text-text-secondary leading-tight ml-2">BONSAI</p>
+      <motion.div className="bg-gray-50 w-full rounded-3xl p-3" variants={rowVariants}>
+        <div className="flex items-center gap-4">
+          <div className="flex-shrink-0">
+            <motion.a
+              href={`https://explorer.lens.xyz/address/${BONSAI_TOKEN_ADDRESS}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="View BONSAI token on Lens Chain Explorer"
+              className="block"
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <Image
+                src="/tokens/bonsai.svg"
+                alt="BONSAI icon"
+                width={TOKEN_ICON_SIZE}
+                height={TOKEN_ICON_SIZE}
+                className="rounded object-cover pointer-events-none"
+                unoptimized
+              />
+            </motion.a>
+          </div>
+
+          <div className="flex-1 flex flex-col gap-2">
+            <p className="text-xs text-text-secondary">BONSAI</p>
+            <p className="text-base font-mono text-foreground">{formattedBonsaiBalance}</p>
+          </div>
+
+          <div className="flex items-center gap-1">
+            <ActionButton
+              label="Approve"
+              icon={CircleStackIcon}
+              variant="approve"
+              onClick={() => handleActionClick("approve", "BONSAI", BONSAI_TOKEN_ADDRESS as Address, 18, bonsaiBalanceData)}
+            />
+            <ActionButton
+              label="Send"
+              icon={PaperAirplaneIcon}
+              variant="send"
+              onClick={() => handleActionClick("send", "BONSAI", BONSAI_TOKEN_ADDRESS as Address, 18, bonsaiBalanceData)}
+            />
           </div>
         </div>
-        <div className="flex space-x-2">
-          <ActionButton
-            label="Approve"
-            icon={CircleStackIcon}
-            variant="yellow"
-            onClick={() => handleActionClick("approve", "BONSAI", BONSAI_TOKEN_ADDRESS as Address, 18, bonsaiBalanceData)}
-          />
-          <ActionButton
-            label="Send"
-            icon={PaperAirplaneIcon}
-            variant="green"
-            onClick={() => handleActionClick("send", "BONSAI", BONSAI_TOKEN_ADDRESS as Address, 18, bonsaiBalanceData)}
-          />
-        </div>
-      </div>
+      </motion.div>
 
       {/* --- Render Modals (remain the same) --- */}
       {modalState.type === "send" && (
@@ -3140,7 +3741,7 @@ export function AccountTokensDisplay() {
       )}
       {modalState.type === "wrap" && <WrapModal isOpen={true} onClose={closeModal} balance={modalState.balance} />}
       {modalState.type === "unwrap" && <UnwrapModal isOpen={true} onClose={closeModal} balance={modalState.balance} />}
-    </div>
+    </motion.div>
   );
 }
 </file>
@@ -3148,26 +3749,25 @@ export function AccountTokensDisplay() {
 <file path="src/components/dashboard/AccountIdentityPanel.tsx">
 "use client";
 
-import { type Address } from "viem";
 import { DocumentDuplicateIcon, QrCodeIcon, CheckIcon } from "@heroicons/react/24/outline";
-import { ArrowTopRightOnSquareIcon } from "@heroicons/react/24/solid";
+import { ArrowTopRightOnSquareIcon, UserCircleIcon } from "@heroicons/react/24/solid";
 import { useState } from "react";
 import { QrCodeModal } from "@/components/modals/QrCodeModal";
+import { motion, AnimatePresence } from "framer-motion";
+import { shortAddress } from "@/lib";
+import { useLensAccount } from "@/contexts/LensAccountContext";
 
-interface AccountIdentityPanelProps {
-  username: string | null;
-  address: Address;
-}
-
-export function AccountIdentityPanel({ username, address }: AccountIdentityPanelProps) {
+export function AccountIdentityPanel() {
+  const { lensAccountAddress, profileMetadata } = useLensAccount();
   const [copied, setCopied] = useState(false);
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
 
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(address);
+      if (!lensAccountAddress) return;
+      await navigator.clipboard.writeText(lensAccountAddress);
       setCopied(true);
-      console.log("Address copied to clipboard:", address);
+      console.log("Address copied to clipboard:", lensAccountAddress);
       // Reset icon after a short delay
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
@@ -3178,7 +3778,7 @@ export function AccountIdentityPanel({ username, address }: AccountIdentityPanel
 
   const handleShowQr = () => {
     setIsQrModalOpen(true);
-    console.log("Showing QR code modal for:", address);
+    console.log("Showing QR code modal for:", lensAccountAddress);
   };
 
   const handleCloseQr = () => {
@@ -3186,46 +3786,93 @@ export function AccountIdentityPanel({ username, address }: AccountIdentityPanel
   };
 
   const handleOpenExplorer = () => {
-    window.open(`https://explorer.lens.xyz/address/${address}`, "_blank");
+    window.open(`https://explorer.lens.xyz/address/${lensAccountAddress}`, "_blank");
   };
 
+  if (!lensAccountAddress) return null;
+
   return (
-    <div>
-      {username && (
-        <h2 className="text-2xl font-medium text-text-primary mb-1">
-          Welcome, <span className="font-semibold text-text-primary">{username}</span>!
-        </h2>
-      )}
-      <p className="text-sm text-text-secondary mb-4">Managing Lens Account:</p>
-      <div className="flex items-center space-x-3 bg-gray-50 p-4 rounded-lg border border-border-subtle">
-        <p className="text-base font-mono text-text-primary break-all flex-1">{address}</p>
-        <button
-          onClick={handleOpenExplorer}
-          title="View on Explorer"
-          className="p-2 text-text-secondary hover:text-text-primary hover:bg-gray-100 rounded-lg transition-colors duration-150"
-        >
-          <ArrowTopRightOnSquareIcon className="w-5 h-5" />
-        </button>
-        <button
-          onClick={handleCopy}
-          title={copied ? "Copied!" : "Copy Address"}
-          className={`p-2 rounded-lg transition-colors duration-150 ${
-            copied ? "text-green-600 bg-green-100 hover:bg-green-200" : "text-text-secondary hover:text-text-primary hover:bg-gray-100"
-          }`}
-        >
-          {copied ? <CheckIcon className="w-5 h-5" /> : <DocumentDuplicateIcon className="w-5 h-5" />}
-        </button>
-        <button
-          onClick={handleShowQr}
-          title="Show QR Code"
-          className="p-2 text-text-secondary hover:text-text-primary hover:bg-gray-100 rounded-lg transition-colors duration-150"
-        >
-          <QrCodeIcon className="w-5 h-5" />
-        </button>
-      </div>
+    <div className="bg-gray-50 w-full rounded-3xl p-3">
+      <motion.div
+        className="flex items-center gap-4"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0, duration: 0.4, type: "spring", stiffness: 260, damping: 20 }}
+      >
+        {/* Avatar/Image */}
+        <div className="flex-shrink-0">
+          {profileMetadata?.avatar ? (
+            <img src={profileMetadata.avatar} alt={profileMetadata.handle || "Account"} className="w-18 h-18 rounded-xl object-cover" />
+          ) : (
+            <UserCircleIcon className="w-12 h-12 text-gray-400" />
+          )}
+        </div>
+
+        {/* Address column */}
+        <div className="flex-1 flex flex-col">
+          <p className="text-xs text-text-secondary">Lens account</p>
+          <p className="text-base font-mono text-foreground select-all">{shortAddress(lensAccountAddress)}</p>
+        </div>
+
+        {/* Action buttons group */}
+        <div className="flex items-center gap-1 mt-1">
+          <motion.button
+            onClick={handleOpenExplorer}
+            title="View on Explorer"
+            className="p-2 text-text-secondary hover:text-text-primary hover:bg-white rounded-lg transition-all duration-150 hover:shadow-sm cursor-pointer"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <ArrowTopRightOnSquareIcon className="w-4 h-4" />
+          </motion.button>
+
+          <AnimatePresence mode="wait">
+            {copied ? (
+              <motion.button
+                key="check"
+                title="Copied!"
+                className="p-2 text-green-600 bg-green-50 rounded-lg cursor-pointer"
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.8, opacity: 0 }}
+                transition={{ duration: 0.2, type: "spring", stiffness: 400, damping: 15 }}
+              >
+                <motion.div
+                  initial={{ rotate: -180 }}
+                  animate={{ rotate: 0 }}
+                  transition={{ duration: 0.3, type: "spring", stiffness: 260, damping: 20 }}
+                >
+                  <CheckIcon className="w-4 h-4" />
+                </motion.div>
+              </motion.button>
+            ) : (
+              <motion.button
+                key="copy"
+                onClick={handleCopy}
+                title="Copy Address"
+                className="p-2 text-text-secondary hover:text-text-primary hover:bg-white rounded-lg transition-all duration-150 hover:shadow-sm cursor-pointer"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <DocumentDuplicateIcon className="w-4 h-4" />
+              </motion.button>
+            )}
+          </AnimatePresence>
+
+          <motion.button
+            onClick={handleShowQr}
+            title="Show QR Code"
+            className="p-2 text-text-secondary hover:text-text-primary hover:bg-white rounded-lg transition-all duration-150 hover:shadow-sm cursor-pointer"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <QrCodeIcon className="w-4 h-4" />
+          </motion.button>
+        </div>
+      </motion.div>
 
       {/* Render the QR modal */}
-      <QrCodeModal address={address} isOpen={isQrModalOpen} onClose={handleCloseQr} />
+      <QrCodeModal address={lensAccountAddress} isOpen={isQrModalOpen} onClose={handleCloseQr} />
     </div>
   );
 }
@@ -3243,25 +3890,42 @@ import { formatUnits, type Hash } from "viem";
 import { getSdkError } from "@walletconnect/utils";
 import { formatJsonRpcError, formatJsonRpcResult, JsonRpcResponse } from "@walletconnect/jsonrpc-utils";
 import { LENS_ACCOUNT_ABI, LENS_CHAIN_ID, lensChain } from "@/lib/constants";
+import { motion } from "framer-motion";
+
+// dApp icon size constant
+const DAPP_ICON_SIZE = 48;
 
 // Basic Fallback Icon Component
-const FallbackIcon = ({ size = 30 }: { size?: number }) => (
+const FallbackIcon = () => (
   <div
-    style={{ width: `${size}px`, height: `${size}px` }}
-    className="rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-xs"
+    style={{ width: `${DAPP_ICON_SIZE}px`, height: `${DAPP_ICON_SIZE}px` }}
+    className="rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-xs flex-shrink-0"
   >
     ?
   </div>
 );
+
+// Animation variants matching the pattern
+const cardVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.3,
+      type: "spring" as const,
+      stiffness: 260,
+      damping: 20,
+    },
+  },
+};
 
 export function WcRequestDisplay() {
   const { pendingRequest, respondRequest, error: wcError, isLoading: isWcLoading } = useWalletConnect();
   const { lensAccountAddress } = useLensAccount();
   const { address: ownerAddress, chainId: ownerChainId } = useAccount();
 
-  // State related to the write *initiation*
   const { data: hash, error: writeError, isPending: isWritePending, writeContractAsync, reset: resetWriteContract } = useWriteContract();
-  // State related to the *confirmation* of the hash from write initiation
   const {
     isLoading: isConfirming,
     isSuccess: isConfirmed,
@@ -3271,19 +3935,14 @@ export function WcRequestDisplay() {
 
   const [localError, setLocalError] = useState<string | null>(null);
   const [localLoadingMessage, setLocalLoadingMessage] = useState<string | null>(null);
-  // Store the ID of the request currently being actively processed
   const processingRequestId = useRef<number | null>(null);
-  // Store the hash associated with the *currently processed* request ID
   const processingRequestHash = useRef<Hash | null>(null);
 
-  // --- Log Component Render ---
   console.log(
     `%cWcRequestDisplay Render: pendingReqId=${pendingRequest?.id ?? "null"}, currentProcessingId=${processingRequestId.current}, currentProcessingHash=${processingRequestHash.current ?? "null"}, hookHash=${hash ?? "null"}, isWritePending=${isWritePending}, isConfirming=${isConfirming}, isConfirmed=${isConfirmed}, receiptHash=${receipt?.transactionHash ?? "null"}, writeError=${!!writeError}, receiptError=${!!receiptError}`,
     "color: magenta",
   );
-  // --------------------------
 
-  // --- Effect to Reset State When a NEW Request Arrives ---
   useEffect(() => {
     const incomingRequestId = pendingRequest?.id ?? null;
     const currentProcessing = processingRequestId.current;
@@ -3300,7 +3959,7 @@ export function WcRequestDisplay() {
         setLocalError(null);
         setLocalLoadingMessage(null);
         processingRequestId.current = incomingRequestId;
-        processingRequestHash.current = null; // Reset hash ref
+        processingRequestHash.current = null;
       } else {
         console.log(
           `%cWcRequestDisplay ResetEffect: Incoming ID ${incomingRequestId} matches current Processing ID. No reset needed.`,
@@ -3314,33 +3973,30 @@ export function WcRequestDisplay() {
         setLocalError(null);
         setLocalLoadingMessage(null);
         processingRequestId.current = null;
-        processingRequestHash.current = null; // Reset hash ref
+        processingRequestHash.current = null;
       } else {
         console.log(`%cWcRequestDisplay ResetEffect: No pending request and nothing processing. No reset needed.`, "color: teal");
       }
     }
-  }, [pendingRequest, resetWriteContract]); // Now depends on pendingRequest object itself
+  }, [pendingRequest, resetWriteContract]);
 
-  // --- Effect to track the hash associated with the current request ---
   useEffect(() => {
     if (hash && processingRequestId.current && !processingRequestHash.current) {
       console.log(`%cWcRequestDisplay HashTrackEffect: Associating hash ${hash} with request ID ${processingRequestId.current}`, "color: purple");
-      processingRequestHash.current = hash; // Store the hash for the request we are processing
+      processingRequestHash.current = hash;
     }
-  }, [hash, processingRequestId]); // Run when hash changes and we have a processing ID
+  }, [hash, processingRequestId]);
 
-  // --- Centralized Respond Function ---
   const handleRespond = useCallback(
     (response: JsonRpcResponse) => {
       const currentId = processingRequestId.current;
       if (currentId !== null && currentId === response.id) {
         console.log(`%cWcRequestDisplay handleRespond: Responding for request ID: ${response.id}`, "color: darkmagenta", response);
         respondRequest(response);
-        // Reset processing state *after* responding
         processingRequestId.current = null;
-        processingRequestHash.current = null; // Reset hash ref
+        processingRequestHash.current = null;
         setLocalLoadingMessage(null);
-        resetWriteContract(); // Try resetting here too
+        resetWriteContract();
       } else {
         console.warn(
           `%cWcRequestDisplay handleRespond: Ignoring response attempt for stale/mismatched request ID: ${response.id} (Current Processing: ${currentId})`,
@@ -3349,23 +4005,17 @@ export function WcRequestDisplay() {
       }
     },
     [respondRequest, resetWriteContract],
-  ); // Add resetWriteContract
+  );
 
-  // --- Effect to Handle Transaction Submission Result ---
   useEffect(() => {
     const currentProcessingId = processingRequestId.current;
-    const currentReqHash = processingRequestHash.current; // Use the hash we stored for this request
+    const currentReqHash = processingRequestHash.current;
 
     console.log(
       `%cWcRequestDisplay ReceiptEffect: Running. CurrentProcessingId=${currentProcessingId}, CurrentReqHash=${currentReqHash ?? "null"}, HookHash=${hash ?? "null"}, isConfirming=${isConfirming}, isConfirmed=${isConfirmed}, receiptHash=${receipt?.transactionHash ?? "null"}, receiptError=${!!receiptError}`,
       "color: #2ECC71",
     );
 
-    // Guards:
-    // 1. Must be processing a request.
-    // 2. Must have a specific hash associated with *this* request attempt.
-    // 3. The confirmation process must be finished (or errored).
-    // 4. The hook's current hash must match the hash associated with our request.
     if (!currentProcessingId || !currentReqHash || isConfirming || hash !== currentReqHash) {
       console.log(
         `%cWcRequestDisplay ReceiptEffect: Bailing out (ProcessingID: ${currentProcessingId}, CurrentReqHash: ${currentReqHash}, HookHash: ${hash}, Confirming: ${isConfirming})`,
@@ -3374,7 +4024,6 @@ export function WcRequestDisplay() {
       return;
     }
 
-    // Now check receipt and errors, ensuring they match the currentReqHash
     if (receipt && receipt.transactionHash === currentReqHash) {
       console.log(`%cWcRequestDisplay ReceiptEffect: Receipt received for current hash ${currentReqHash}`, "color: #2ECC71");
       setLocalLoadingMessage(null);
@@ -3409,9 +4058,8 @@ export function WcRequestDisplay() {
     } else {
       console.log(`%cWcRequestDisplay ReceiptEffect: No definitive action taken for hash ${currentReqHash}`, "color: gray");
     }
-  }, [isConfirming, isConfirmed, receiptError, receipt, hash, handleRespond]); // Keep dependencies
+  }, [isConfirming, isConfirmed, receiptError, receipt, hash, handleRespond]);
 
-  // --- Effect to Handle Direct Write Errors ---
   useEffect(() => {
     const currentProcessingId = processingRequestId.current;
     console.log(`%cWcRequestDisplay WriteErrorEffect: Running. writeError=${!!writeError}, currentProcessingId=${currentProcessingId}`, "color: red");
@@ -3429,11 +4077,10 @@ export function WcRequestDisplay() {
     if (!writeContractAsync) return setLocalError("Transaction function not ready.");
     if (ownerChainId !== LENS_CHAIN_ID) return setLocalError("Owner wallet not on Lens Chain.");
 
-    // Reset local state AND ensure we reset wagmi state *before* initiating write
     console.log(`%cWcRequestDisplay handleApprove: Resetting state before write for request ID: ${pendingRequest.id}`, "color: blueviolet");
-    resetWriteContract(); // Reset here as well
-    processingRequestId.current = pendingRequest.id; // Mark immediately
-    processingRequestHash.current = null; // Clear previous hash
+    resetWriteContract();
+    processingRequestId.current = pendingRequest.id;
+    processingRequestHash.current = null;
     setLocalError(null);
     setLocalLoadingMessage("Please confirm in your wallet...");
 
@@ -3459,7 +4106,6 @@ export function WcRequestDisplay() {
 
     try {
       console.log("%cWcRequestDisplay handleApprove: Calling writeContractAsync...", "color: blueviolet");
-      // Call async, the hash state update will trigger the HashTrackEffect
       await writeContractAsync({
         address: lensAccountAddress,
         abi: LENS_ACCOUNT_ABI,
@@ -3472,7 +4118,6 @@ export function WcRequestDisplay() {
     } catch (error) {
       console.error("WcRequestDisplay handleApprove: Error calling writeContractAsync:", error);
       if (!writeError && processingRequestId.current) {
-        // Check current ID before responding
         const errorMsg = `Failed to initiate transaction: ${(error as Error).message}`;
         setLocalError(errorMsg);
         handleRespond(formatJsonRpcError(processingRequestId.current, getSdkError("USER_REJECTED")));
@@ -3482,91 +4127,98 @@ export function WcRequestDisplay() {
 
   const handleReject = () => {
     if (!pendingRequest) return;
-    processingRequestId.current = pendingRequest.id; // Mark which request we are rejecting
+    processingRequestId.current = pendingRequest.id;
     setLocalError(null);
     setLocalLoadingMessage(null);
     console.log("WcRequestDisplay handleReject: Rejecting request:", pendingRequest.id);
     handleRespond(formatJsonRpcError(pendingRequest.id, getSdkError("USER_REJECTED")));
   };
 
-  // --- Render Logic ---
   if (!pendingRequest) {
-    return (
-      // Style the "no requests" message slightly differently
-      <div className="p-8 text-center">
-        <p className="text-gray-500 italic">No pending WalletConnect requests.</p>
-      </div>
-    );
+    return null;
   }
 
-  // Extract request details safely
   const { request, chainId } = pendingRequest.params;
   const txDetails = request.params?.[0] as { to?: string; value?: string; data?: string } | undefined;
   const dAppName = pendingRequest.verifyContext?.verified.origin || "Unknown dApp";
-  const dAppUrl = pendingRequest.verifyContext?.verified.origin;
   const formattedValue = txDetails?.value
     ? `${formatUnits(BigInt(txDetails.value), lensChain.nativeCurrency.decimals)} ${lensChain.nativeCurrency.symbol}`
     : `0 ${lensChain.nativeCurrency.symbol}`;
   const isLoading = isWritePending || isConfirming || isWcLoading;
 
   return (
-    // Remove border, use background, add padding here
-    <div className="p-6 md:p-8 bg-gray-50 space-y-5">
-      <h3 className="text-lg font-semibold text-text-primary">WalletConnect Request</h3>
-      <div className="flex items-center space-x-3 mb-3 pb-3 border-b border-blue-200">
-        <FallbackIcon size={30} />
-        <div>
-          <p className="text-sm font-medium text-gray-800">{dAppName}</p>
-          {dAppUrl && <p className="text-xs text-gray-500">{dAppUrl}</p>}
+    <motion.div layout className="w-full" variants={cardVariants} initial="hidden" animate="visible">
+      <motion.div layout className="bg-gray-50 w-full rounded-3xl p-3 border-2 border-blue-200">
+        {/* Header Row */}
+        <div className="flex items-center gap-4">
+          <div className="flex-shrink-0">
+            <FallbackIcon />
+          </div>
+          <div className="flex-1 flex flex-col gap-1">
+            <p className="text-xs text-blue-600 font-medium">Transaction Request</p>
+            <p className="text-base font-medium text-foreground">{dAppName}</p>
+            <p className="text-xs text-gray-600">
+              {request.method} • {formattedValue}
+            </p>
+          </div>
         </div>
-      </div>
 
-      <div className="space-y-2 text-sm">
-        <p>
-          <strong className="text-gray-600">Method:</strong> <span className="font-mono bg-gray-100 px-1 rounded">{request.method}</span>
-          {/* Add space */}
-          <strong className="text-gray-600">Chain:</strong> <span className="font-mono bg-gray-100 px-1 rounded">{chainId}</span>
-        </p>
-        <p>
-          <strong className="text-gray-600">Target (to):</strong> <span className="font-mono text-xs break-all">{txDetails?.to ?? "N/A"}</span>
-        </p>
-        {/* Keep Value and Data separated for clarity */}
-        <p>
-          <strong className="text-gray-600">Value:</strong> <span className="font-mono">{formattedValue}</span>
-        </p>
-        <div>
-          <strong className="text-gray-600">Data:</strong>
-          <textarea
-            readOnly
-            value={txDetails?.data ?? "0x"}
-            className="mt-1 w-full h-20 p-2 border border-border-subtle rounded-md text-xs font-mono bg-white focus:outline-none focus:ring-1 focus:ring-text-primary"
-          />
+        {/* Transaction Details */}
+        <div className="mt-3 pt-3 border-t border-gray-200 space-y-2">
+          <div className="flex items-start gap-2 text-xs">
+            <span className="text-gray-600 font-medium flex-shrink-0">Chain:</span>
+            <span className="font-mono bg-gray-100 px-1 rounded">{chainId}</span>
+          </div>
+          <div className="flex items-start gap-2 text-xs">
+            <span className="text-gray-600 font-medium flex-shrink-0">Target:</span>
+            <span className="font-mono text-[10px] break-all">{txDetails?.to ?? "N/A"}</span>
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="text-xs text-gray-600 font-medium">Data:</span>
+            <textarea
+              readOnly
+              value={txDetails?.data ?? "0x"}
+              className="w-full h-16 p-2 border border-gray-200 rounded-lg text-[10px] font-mono bg-white focus:outline-none resize-none"
+            />
+          </div>
         </div>
-      </div>
 
-      {/* Status Display */}
-      {localLoadingMessage && <p className="text-sm text-center text-text-secondary animate-pulse">{localLoadingMessage}</p>}
-      {localError && <p className="text-sm text-center text-red-600">{localError}</p>}
-      {wcError && !localError && <p className="text-sm text-center text-red-600">WC Error: {wcError}</p>}
+        {/* Status Messages */}
+        {localLoadingMessage && (
+          <div className="mt-2">
+            <p className="text-xs text-center text-blue-600 animate-pulse">{localLoadingMessage}</p>
+          </div>
+        )}
+        {localError && (
+          <div className="mt-2">
+            <p className="text-xs text-center text-red-600">{localError}</p>
+          </div>
+        )}
+        {wcError && !localError && (
+          <div className="mt-2">
+            <p className="text-xs text-center text-red-600">WC Error: {wcError}</p>
+          </div>
+        )}
 
-      {/* Action Buttons */}
-      <div className="flex space-x-3 pt-2">
-        <button
-          onClick={handleApprove}
-          disabled={isLoading}
-          className="flex-1 px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 transition-colors"
-        >
-          {isWritePending ? "Check Wallet..." : isConfirming ? "Confirming..." : "Approve & Send"}
-        </button>
-        <button
-          onClick={handleReject}
-          disabled={isLoading}
-          className="flex-1 px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 transition-colors"
-        >
-          Reject
-        </button>
-      </div>
-    </div>
+        {/* Action Buttons */}
+        <div className="mt-3 flex gap-2">
+          <button
+            onClick={handleApprove}
+            disabled={isLoading}
+            className="flex-1 px-4 py-2 bg-green-600 text-white text-xs font-medium rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-150"
+          >
+            {isWritePending ? "Check Wallet..." : isConfirming ? "Confirming..." : "Approve & Send"}
+          </button>
+          <button
+            onClick={handleReject}
+            disabled={isLoading}
+            className="flex-1 px-4 py-2 bg-red-600 text-white text-xs font-medium rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-150"
+          >
+            Reject
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
   );
 }
 </file>
@@ -3865,6 +4517,8 @@ import { DocumentDuplicateIcon, CheckIcon } from "@heroicons/react/24/outline";
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { useLensAccount } from "@/contexts/LensAccountContext";
 import { LENS_ACCOUNT_ABI, LENS_CHAIN_ID } from "@/lib/constants";
+import { motion, AnimatePresence } from "framer-motion";
+import { shortAddress } from "@/lib";
 
 interface OwnerPanelProps {
   ownerAddress: Address;
@@ -3983,86 +4637,169 @@ export function OwnerPanel({ ownerAddress }: OwnerPanelProps) {
   }
 
   return (
-    <div>
-      <h2 className="text-xl font-medium mb-6 text-text-primary">Account Owner</h2>
-      {/* Consistent address display */}
-      <div className="flex items-center space-x-3 bg-gray-50 p-4 rounded-lg border border-border-subtle mb-4">
-        <p className="text-sm font-mono text-text-primary break-all flex-1">{ownerAddress}</p>
-        <button
-          onClick={handleOpenExplorer}
-          title="View on Explorer"
-          className="p-2 text-text-secondary hover:text-text-primary hover:bg-gray-100 rounded-lg transition-colors duration-150"
-        >
-          <ArrowTopRightOnSquareIcon className="w-5 h-5" />
-        </button>
-        <button
-          onClick={handleCopy}
-          title={copied ? "Copied!" : "Copy Address"}
-          className={`p-2 rounded-lg transition-colors duration-150 ${
-            copied ? "text-green-600 bg-green-100 hover:bg-green-200" : "text-text-secondary hover:text-text-primary hover:bg-gray-100"
-          }`}
-        >
-          {copied ? <CheckIcon className="w-5 h-5" /> : <DocumentDuplicateIcon className="w-5 h-5" />}
-        </button>
-      </div>
-
-      {!isChangingOwner && (
-        <button
-          onClick={handleToggleChangeOwner}
-          className="text-sm font-medium text-text-primary hover:text-text-secondary transition-colors underline"
-        >
-          Change Owner
-        </button>
-      )}
-
-      {isChangingOwner && (
-        <div className="mt-6 p-5 border border-red-200 rounded-lg bg-red-50 space-y-4">
-          <div className="flex items-center text-red-700">
-            <ExclamationTriangleIcon className="w-6 h-6 mr-2" />
-            <p className="text-sm font-semibold">Danger Zone: Transfer Ownership</p>
-          </div>
-          <p className="text-xs text-red-600">
-            Warning: Transferring ownership is irreversible. Ensure the new address is correct and accessible. You will lose control of this Lens
-            Account if you proceed.
-          </p>
-          <div>
-            <label htmlFor="new-owner" className="block text-sm font-medium text-gray-700 mb-1">
-              New Owner Address
-            </label>
-            <input
-              id="new-owner"
-              name="new-owner"
-              type="text"
-              value={newOwner}
-              onChange={handleNewOwnerChange}
-              placeholder="0x..."
-              className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-1 sm:text-sm ${
-                inputError ? "border-red-500 ring-red-500" : "border-gray-300 focus:ring-red-500 focus:border-red-500"
-              } bg-white`} // Ensure bg is white
-            />
-            {inputError && <p className="mt-1 text-xs text-red-600">{inputError}</p>}
-          </div>
-          <div className="flex space-x-3">
-            <button
-              onClick={handleConfirmChangeOwner}
-              disabled={!isAddress(newOwner) || newOwner.toLowerCase() === ownerAddress.toLowerCase() || isLoading || isConfirmed}
-              className="flex-1 px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-md shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading ? "Processing..." : isConfirmed ? "Transferred" : "Confirm Change Owner"}
-            </button>
-            <button
-              onClick={handleToggleChangeOwner}
-              disabled={isLoading}
-              className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 text-sm font-medium rounded-md shadow-sm hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 disabled:opacity-50"
-            >
-              Cancel
-            </button>
-          </div>
-          {/* Display status message */}
-          <div className="min-h-[20px]">{statusMessage}</div>
+    <motion.div layout className="bg-gray-50 w-full rounded-3xl p-3">
+      <motion.div
+        layout
+        className="flex items-center gap-4 h-14"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{
+          delay: 0.1,
+          duration: 0.4,
+          type: "spring",
+          stiffness: 260,
+          damping: 20,
+          layout: {
+            duration: 0.4,
+            type: "spring",
+            stiffness: 200,
+            damping: 25,
+          },
+        }}
+      >
+        {/* Address column */}
+        <div className="flex-1 flex flex-col pl-2">
+          <p className="text-xs text-text-secondary">Owner</p>
+          <p className="text-base font-mono text-foreground select-all">{shortAddress(ownerAddress)}</p>
         </div>
-      )}
-    </div>
+
+        {/* Action buttons group */}
+        <div className="flex items-center gap-1 mt-1">
+          <motion.button
+            onClick={handleOpenExplorer}
+            title="View on Explorer"
+            className="p-2 text-text-secondary hover:text-text-primary hover:bg-white rounded-lg transition-all duration-150 hover:shadow-sm cursor-pointer"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <ArrowTopRightOnSquareIcon className="w-4 h-4" />
+          </motion.button>
+
+          <AnimatePresence mode="wait">
+            {copied ? (
+              <motion.button
+                key="check"
+                title="Copied!"
+                className="p-2 text-green-600 bg-green-50 rounded-lg cursor-pointer"
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.8, opacity: 0 }}
+                transition={{ duration: 0.2, type: "spring", stiffness: 400, damping: 15 }}
+              >
+                <motion.div
+                  initial={{ rotate: -180 }}
+                  animate={{ rotate: 0 }}
+                  transition={{ duration: 0.3, type: "spring", stiffness: 260, damping: 20 }}
+                >
+                  <CheckIcon className="w-4 h-4" />
+                </motion.div>
+              </motion.button>
+            ) : (
+              <motion.button
+                key="copy"
+                onClick={handleCopy}
+                title="Copy Address"
+                className="p-2 text-text-secondary hover:text-text-primary hover:bg-white rounded-lg transition-all duration-150 hover:shadow-sm cursor-pointer"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <DocumentDuplicateIcon className="w-4 h-4" />
+              </motion.button>
+            )}
+          </AnimatePresence>
+
+          <motion.button
+            onClick={handleToggleChangeOwner}
+            title="Change Owner"
+            className="px-3 py-1 text-xs font-medium text-orange-600 hover:text-orange-700 hover:bg-orange-50 rounded-lg transition-all duration-150 hover:shadow-sm cursor-pointer"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            {isChangingOwner ? "Cancel" : "Change"}
+          </motion.button>
+        </div>
+      </motion.div>
+
+      <AnimatePresence mode="popLayout">
+        {isChangingOwner && (
+          <motion.div
+            layout
+            className="mt-3 p-4 border border-orange-200 rounded-2xl bg-orange-50 space-y-3 overflow-hidden"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{
+              duration: 0.2,
+              layout: {
+                duration: 0.4,
+                type: "spring",
+                stiffness: 200,
+                damping: 25,
+              },
+            }}
+          >
+            <div className="flex items-center text-orange-700">
+              <ExclamationTriangleIcon className="w-5 h-5 mr-2 text-orange-600" />
+              <p className="text-xs font-semibold">Transfer Ownership - Irreversible Action</p>
+            </div>
+
+            <p className="text-xs text-orange-600">Warning: Transferring ownership is permanent. Ensure the new address is correct and accessible.</p>
+
+            <div>
+              <label htmlFor="new-owner" className="block text-xs font-medium text-text-primary mb-1">
+                New Owner Address
+              </label>
+              <input
+                id="new-owner"
+                name="new-owner"
+                type="text"
+                value={newOwner}
+                onChange={handleNewOwnerChange}
+                placeholder="0x..."
+                className={`w-full px-3 py-2 bg-white border rounded-lg text-sm text-text-primary placeholder-text-secondary focus:outline-none focus:ring-1 transition duration-200 ${
+                  inputError
+                    ? "border-red-500 focus:border-red-500 focus:ring-red-500"
+                    : "border-gray-200 focus:border-text-primary focus:ring-text-primary focus:bg-white"
+                }`}
+              />
+              <AnimatePresence>
+                {inputError && (
+                  <motion.p
+                    className="mt-1 text-xs text-red-600"
+                    initial={{ opacity: 0, y: -5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -5 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    {inputError}
+                  </motion.p>
+                )}
+              </AnimatePresence>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={handleConfirmChangeOwner}
+                disabled={!isAddress(newOwner) || newOwner.toLowerCase() === ownerAddress.toLowerCase() || isLoading || isConfirmed}
+                className="flex-1 px-4 py-2 bg-orange-600 text-white text-xs font-medium rounded-lg hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-150"
+              >
+                {isLoading ? "Processing..." : isConfirmed ? "Transferred" : "Confirm Transfer"}
+              </button>
+              <button
+                onClick={handleToggleChangeOwner}
+                disabled={isLoading}
+                className="flex-1 px-4 py-2 bg-white text-text-secondary border border-gray-200 text-xs font-medium rounded-lg hover:bg-gray-50 hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-text-primary disabled:opacity-50 transition-all duration-150"
+              >
+                Cancel
+              </button>
+            </div>
+
+            {/* Display status message */}
+            {statusMessage && <div>{statusMessage}</div>}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 }
 </file>
@@ -4255,11 +4992,24 @@ We will follow an incremental development approach, building and verifying core 
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useWalletConnect } from "@/contexts/WalletConnectProvider"; // Ensure correct path
+import { useWalletConnect } from "@/contexts/WalletConnectProvider";
 import Image from "next/image";
+import { motion, AnimatePresence } from "framer-motion";
+import { StatusCard } from "@/components/shared/StatusCard";
+import { LinkIcon } from "@heroicons/react/24/outline";
+
+// Token/dApp icon size constant
+const DAPP_ICON_SIZE = 48;
 
 // Default/Fallback Icon
-const FallbackIcon = () => <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-xs">?</div>;
+const FallbackIcon = () => (
+  <div
+    className="rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-xs"
+    style={{ width: `${DAPP_ICON_SIZE}px`, height: `${DAPP_ICON_SIZE}px` }}
+  >
+    ?
+  </div>
+);
 
 // Helper function to resolve icon URL
 const resolveIconUrl = (iconPath: string | null | undefined, baseUrl: string | null | undefined): string | undefined => {
@@ -4284,7 +5034,7 @@ const resolveIconUrl = (iconPath: string | null | undefined, baseUrl: string | n
 };
 
 // Icon component with error handling
-const DAppIcon = ({ iconUrl, name, size = 40 }: { iconUrl?: string; name: string; size?: number }) => {
+const DAppIcon = ({ iconUrl, name }: { iconUrl?: string; name: string }) => {
   const [hasError, setHasError] = useState(false);
 
   if (!iconUrl || hasError) return <FallbackIcon />;
@@ -4293,9 +5043,9 @@ const DAppIcon = ({ iconUrl, name, size = 40 }: { iconUrl?: string; name: string
     <Image
       src={iconUrl}
       alt={`${name} icon`}
-      width={size}
-      height={size}
-      className="rounded-full"
+      width={DAPP_ICON_SIZE}
+      height={DAPP_ICON_SIZE}
+      className="rounded-full pointer-events-none"
       unoptimized
       onError={() => {
         console.warn("Failed to load icon:", iconUrl);
@@ -4305,44 +5055,53 @@ const DAppIcon = ({ iconUrl, name, size = 40 }: { iconUrl?: string; name: string
   );
 };
 
+// Animation variants for individual cards
+const cardVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.3,
+      type: "spring" as const,
+      stiffness: 260,
+      damping: 20,
+    },
+  },
+};
+
 export function WcConnect() {
-  // Destructure states from the refactored provider, including isInitializing
   const {
     activeSessions,
     pair,
     disconnect,
-    isLoading, // Use the combined loading state
+    isLoading,
     isPairing,
     error,
-    isInitialized, // Use the service readiness flag
-    pendingProposal, // Get the pending proposal
-    approveSession, // Get approve action
-    rejectSession, // Get reject action
-    isInitializing, // <<<--- ADDED isInitializing HERE ---<<<
+    isInitialized,
+    pendingProposal,
+    approveSession,
+    rejectSession,
+    isInitializing,
   } = useWalletConnect();
   const [uri, setUri] = useState("");
 
-  const activeSessionTopic = Object.keys(activeSessions)[0]; // Assuming only one session for MVP
+  const activeSessionTopic = Object.keys(activeSessions)[0];
   const connectedSession = activeSessionTopic ? activeSessions[activeSessionTopic] : null;
 
-  // --- Add this useEffect ---
   useEffect(() => {
-    // If there's no connected session (either initially or after disconnect),
-    // clear the URI input field.
     if (!connectedSession) {
       setUri("");
     }
-  }, [connectedSession]); // Run this effect when connectedSession changes
-  // -------------------------
+  }, [connectedSession]);
 
   const handleConnect = () => {
-    if (!uri || !isInitialized || isLoading) return; // Check initialization and combined loading state
+    if (!uri || !isInitialized || isLoading) return;
     pair(uri);
   };
 
   const handleDisconnect = () => {
     if (connectedSession && isInitialized && !isLoading) {
-      // Check initialization and combined loading state
       disconnect(connectedSession.topic);
     }
   };
@@ -4359,11 +5118,10 @@ export function WcConnect() {
     }
   };
 
-  // Display loading states more granularly if needed, otherwise use `isLoading`
   const connectButtonText = isPairing ? "Pairing..." : isLoading ? "Working..." : "Connect";
   const disconnectButtonText = isLoading ? "Working..." : "Disconnect";
-  const approveButtonText = isLoading ? "Working..." : "Approve Session";
-  const rejectButtonText = isLoading ? "Working..." : "Reject Session";
+  const approveButtonText = isLoading ? "Working..." : "Approve";
+  const rejectButtonText = isLoading ? "Working..." : "Reject";
 
   // Resolve icon URLs
   const connectedDAppIconUrl = connectedSession
@@ -4375,101 +5133,141 @@ export function WcConnect() {
     : undefined;
 
   return (
-    // Remove border, adjust padding and background if needed (now inside a white card)
-    <div className="space-y-4">
-      <h3 className="text-lg font-semibold text-gray-800">Connect to dApp</h3>
-
-      {/* --- Session Proposal Modal (Simplified Inline) --- */}
-      {pendingProposal && (
-        // Use softer warning style
-        <div className="p-4 border border-orange-200 bg-orange-50 rounded-lg space-y-3">
-          <p className="text-sm font-medium text-yellow-800">Connection Request from:</p>
-          <div className="flex items-center space-x-2">
-            <DAppIcon iconUrl={proposalIconUrl} name={pendingProposal.params.proposer.metadata.name} size={30} />
-            <span className="text-sm text-gray-700">{pendingProposal.params.proposer.metadata.name}</span>
-          </div>
-          {/* TODO: Display requested permissions details if needed */}
-          <div className="flex space-x-2 pt-2">
-            <button
-              onClick={handleApprove}
-              disabled={isLoading || !isInitialized}
-              className="flex-1 px-3 py-1 bg-green-500 text-white text-xs font-medium rounded-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50"
-            >
-              {approveButtonText}
-            </button>
-            <button
-              onClick={handleReject}
-              disabled={isLoading || !isInitialized}
-              className="flex-1 px-3 py-1 bg-red-500 text-white text-xs font-medium rounded-md hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50"
-            >
-              {rejectButtonText}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* --- Connected Session Display --- */}
-      {connectedSession && !pendingProposal && (
-        // Use softer success style
-        <div className="space-y-3 p-4 bg-green-50 border border-green-200 rounded-lg">
-          {/* Display connected dApp info */}
-          <p className="text-green-800 font-medium">Connected to:</p>
-          <div className="flex items-center space-x-3">
-            <DAppIcon iconUrl={connectedDAppIconUrl} name={connectedSession.peer.metadata.name} size={40} />
-            <div>
-              <p className="text-sm font-semibold text-gray-900">{connectedSession.peer.metadata.name}</p>
-              <p className="text-xs text-gray-600 break-all">{connectedSession.peer.metadata.url}</p>
-            </div>
-          </div>
-          <p className="text-xs text-gray-500">
-            Topic: <span className="font-mono break-all">{connectedSession.topic}</span>
-          </p>
-          <button
-            onClick={handleDisconnect}
-            disabled={isLoading || !isInitialized} // Use combined loading state
-            className="w-full px-4 py-2 mt-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 transition-colors"
+    <motion.div layout className="w-full space-y-4">
+      <AnimatePresence mode="wait">
+        {/* --- Session Proposal Card --- */}
+        {pendingProposal && (
+          <motion.div
+            key="proposal"
+            layout
+            className="bg-gray-50 w-full rounded-3xl p-3 border-2 border-orange-200"
+            variants={cardVariants}
+            initial="hidden"
+            animate="visible"
+            exit={{ opacity: 0, y: -20 }}
           >
-            {disconnectButtonText}
-          </button>
-        </div>
-      )}
+            <div className="flex items-center gap-4">
+              <div className="flex-shrink-0">
+                <DAppIcon iconUrl={proposalIconUrl} name={pendingProposal.params.proposer.metadata.name} />
+              </div>
+              <div className="flex-1 flex flex-col gap-1">
+                <p className="text-xs text-orange-600 font-medium">Connection Request</p>
+                <p className="text-base font-medium text-foreground">{pendingProposal.params.proposer.metadata.name}</p>
+                {pendingProposal.params.proposer.metadata.description && (
+                  <p className="text-xs text-gray-600">{pendingProposal.params.proposer.metadata.description}</p>
+                )}
+              </div>
+            </div>
+            <div className="mt-3 flex gap-2">
+              <button
+                onClick={handleApprove}
+                disabled={isLoading || !isInitialized}
+                className="flex-1 px-4 py-2 bg-green-600 text-white text-xs font-medium rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-150"
+              >
+                {approveButtonText}
+              </button>
+              <button
+                onClick={handleReject}
+                disabled={isLoading || !isInitialized}
+                className="flex-1 px-4 py-2 bg-white text-text-secondary border border-gray-200 text-xs font-medium rounded-lg hover:bg-gray-50 hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-text-primary disabled:opacity-50 transition-colors duration-150"
+              >
+                {rejectButtonText}
+              </button>
+            </div>
+          </motion.div>
+        )}
 
-      {/* --- Pairing/Connection Form --- */}
-      {!connectedSession && !pendingProposal && (
-        <div className="space-y-2">
-          <label htmlFor="wc-uri" className="block text-sm font-medium text-gray-700">
-            Paste WalletConnect URI
-          </label>
-          <div className="flex space-x-2">
-            <input
-              id="wc-uri"
-              name="wc-uri"
-              type="text"
-              value={uri}
-              onChange={(e) => setUri(e.target.value)}
-              placeholder="wc:..."
-              className="flex-grow px-4 py-2 bg-gray-50 border border-border-subtle rounded-lg shadow-sm focus:outline-none focus:ring-1 focus:ring-text-primary focus:border-text-primary focus:bg-white sm:text-sm disabled:bg-gray-100 transition-colors"
-              disabled={isLoading || !isInitialized} // Use combined loading state
-            />
-            <button
-              onClick={handleConnect}
-              disabled={!uri || isLoading || !isInitialized} // Use combined loading state
-              className="px-5 py-2 bg-button-primary-bg text-button-primary-text text-sm font-medium rounded-lg hover:bg-gray-800 focus:outline-none focus:ring-1 focus:ring-text-primary disabled:opacity-50 transition-colors"
-            >
-              {connectButtonText}
-            </button>
-          </div>
-        </div>
-      )}
+        {/* --- Connected Session Card --- */}
+        {connectedSession && !pendingProposal && (
+          <motion.div
+            key="connected"
+            layout
+            className="bg-gray-50 w-full rounded-3xl p-3 border-2 border-green-200"
+            variants={cardVariants}
+            initial="hidden"
+            animate="visible"
+            exit={{ opacity: 0, y: -20 }}
+          >
+            <div className="flex items-center gap-4">
+              <div className="flex-shrink-0">
+                <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
+                  <DAppIcon iconUrl={connectedDAppIconUrl} name={connectedSession.peer.metadata.name} />
+                </motion.div>
+              </div>
+              <div className="flex-1 flex flex-col gap-1">
+                <p className="text-xs text-green-600 font-medium">Connected to</p>
+                <p className="text-base font-medium text-foreground">{connectedSession.peer.metadata.name}</p>
+                <p className="text-xs text-gray-600 truncate">{connectedSession.peer.metadata.url}</p>
+              </div>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={handleDisconnect}
+                  disabled={isLoading || !isInitialized}
+                  className="px-3 py-1 text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {disconnectButtonText}
+                </button>
+              </div>
+            </div>
+            <div className="mt-2 pt-2 border-t border-gray-200">
+              <p className="text-xs text-gray-500">
+                Topic: <span className="font-mono text-[10px] break-all">{connectedSession.topic}</span>
+              </p>
+            </div>
+          </motion.div>
+        )}
 
-      {/* --- Status/Error Messages --- */}
-      {error && !isLoading && <p className="text-red-600 text-sm mt-2">Error: {error}</p>}
-      {isPairing && <p className="text-text-secondary text-sm mt-2">Pairing initiated, check dApp/wallet if needed...</p>}
-      {/* Check both flags here now */}
-      {!isInitialized && !isInitializing && !error && <p className="text-orange-600 text-sm mt-2">WalletConnect service not ready.</p>}
-      {/* And display initializing message correctly */}
-      {isInitializing && <p className="text-gray-500 text-sm mt-2">Initializing WalletConnect...</p>}
-    </div>
+        {/* --- Connection Form Card --- */}
+        {!connectedSession && !pendingProposal && (
+          <motion.div
+            key="form"
+            layout
+            className="bg-gray-50 w-full rounded-3xl p-3"
+            variants={cardVariants}
+            initial="hidden"
+            animate="visible"
+            exit={{ opacity: 0 }}
+          >
+            <div className="flex items-center gap-4">
+              <div className="flex-shrink-0">
+                <LinkIcon className="w-12 h-12 text-gray-400" />
+              </div>
+              <div className="flex-1 flex flex-col gap-1">
+                <p className="text-xs text-text-secondary">dApp Connection</p>
+                <p className="text-base text-foreground">No active session</p>
+              </div>
+            </div>
+            <div className="mt-3 space-y-2">
+              <input
+                id="wc-uri"
+                name="wc-uri"
+                type="text"
+                value={uri}
+                onChange={(e) => setUri(e.target.value)}
+                placeholder="Paste WalletConnect URI (wc:...)"
+                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-text-primary placeholder-text-secondary focus:outline-none focus:ring-1 focus:ring-text-primary focus:border-text-primary transition duration-200 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                disabled={isLoading || !isInitialized}
+              />
+              <button
+                onClick={handleConnect}
+                disabled={!uri || isLoading || !isInitialized}
+                className="w-full px-4 py-2 bg-button-primary-bg text-button-primary-text text-sm font-medium rounded-lg hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-text-primary disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-150"
+              >
+                {connectButtonText}
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* --- Status/Error Messages using StatusCard --- */}
+      <AnimatePresence>
+        {error && !isLoading && <StatusCard variant="error" message={`Error: ${error}`} />}
+        {isPairing && <StatusCard variant="loading" message="Pairing initiated, check dApp/wallet if needed..." />}
+        {!isInitialized && !isInitializing && !error && <StatusCard variant="warning" message="WalletConnect service not ready." />}
+        {isInitializing && <StatusCard variant="loading" message="Initializing WalletConnect..." />}
+      </AnimatePresence>
+    </motion.div>
   );
 }
 </file>
@@ -5419,13 +6217,13 @@ import { useLensAccount } from "@/contexts/LensAccountContext";
 import { LENS_ACCOUNT_ABI, LENS_CHAIN_ID, LOCAL_STORAGE_KEYS } from "@/lib/constants";
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
 import { fetchLensProfile, type LensProfileMetadata } from "@/lib/lens/service";
+import { DashboardLeftPanelTabbed } from "@/components/DashboardLeftPanelTabbed";
 
 export default function Home() {
   // Initialize state with empty defaults (server-renderable)
   const [lensAccountAddress, setLensAccountAddress] = useState<Address | "">("");
   const [lensUsername, setLensUsername] = useState<string>("");
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [profileMetadata, setProfileMetadata] = useState<LensProfileMetadata | null>(null);
 
   const [expectedOwner, setExpectedOwner] = useState<Address | null>(null);
   const [ownerFetchError, setOwnerFetchError] = useState<string | null>(null);
@@ -5435,7 +6233,7 @@ export default function Home() {
 
   const { address: connectedAddress, chainId: connectedChainId, isConnected, isConnecting, isReconnecting, status } = useAccount();
   const router = useRouter();
-  const { setVerifiedAccount, clearAccount: clearContext } = useLensAccount();
+  const { setVerifiedAccount, setProfileMetadata, profileMetadata, clearAccount: clearContext } = useLensAccount();
 
   // New useEffect to load from localStorage after component mount
   useEffect(() => {
@@ -5559,7 +6357,7 @@ export default function Home() {
       setIsAuthenticated(true);
 
       // Fetch profile data from Lens API
-      fetchProfileMetadata(storedUsername || "", storedLensAddress);
+      fetchProfileMetadataAndStore(storedUsername || "", storedLensAddress);
     } else {
       try {
         localStorage.removeItem(LOCAL_STORAGE_KEYS.LENS_ACCOUNT_ADDRESS);
@@ -5598,7 +6396,7 @@ export default function Home() {
       setIsAuthenticated(true); // Set authenticated instead of routing
 
       // Fetch profile data from Lens API
-      fetchProfileMetadata(lensUsername, lensAccountAddress);
+      fetchProfileMetadataAndStore(lensUsername, lensAccountAddress);
     } else {
       setVerificationError(`Incorrect owner connected. Please connect with wallet: ${expectedOwner}`);
       try {
@@ -5637,7 +6435,7 @@ export default function Home() {
   };
 
   // Function to fetch profile metadata from Lens API
-  const fetchProfileMetadata = async (username: string, accountAddress?: Address | "") => {
+  const fetchProfileMetadataAndStore = async (username: string, accountAddress?: Address | "") => {
     const lensAccAddr = accountAddress || lensAccountAddress;
 
     // Only fetch if we have a valid Lens account address
@@ -5679,7 +6477,6 @@ export default function Home() {
     setExpectedOwner(null);
     setOwnerFetchError(null);
     setVerificationError(null);
-    setProfileMetadata(null);
     // Note: localStorage clearing is handled by DashboardLeftPanel component
   };
 
@@ -5775,7 +6572,7 @@ export default function Home() {
         </LeftPanelContainer>
       ) : (
         <LeftPanelContainer variant="dashboard" animationKey="dashboard">
-          <DashboardLeftPanel onLogout={handleLogout} />
+          <DashboardLeftPanelTabbed onLogout={handleLogout} />
         </LeftPanelContainer>
       )}
 

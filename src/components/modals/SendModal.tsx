@@ -134,7 +134,7 @@ export function SendModal({ isOpen, onClose, tokenSymbol, tokenAddress, decimals
           onChange={(e) => setRecipient(e.target.value.trim())}
           placeholder="0x..."
           disabled={isLoading}
-          className="w-full px-4 py-2 bg-gray-50 border border-border-subtle rounded-lg focus:outline-none focus:ring-1 focus:ring-text-primary focus:border-text-primary focus:bg-white transition duration-150 disabled:bg-gray-100"
+          className="w-full px-4 py-3 bg-gray-50 border border-border-subtle rounded-lg focus:outline-none focus:ring-1 focus:ring-text-primary focus:border-text-primary focus:bg-white transition duration-200 disabled:bg-gray-100 disabled:cursor-not-allowed"
         />
       </div>
 
@@ -152,7 +152,7 @@ export function SendModal({ isOpen, onClose, tokenSymbol, tokenAddress, decimals
           min="0"
           step="any"
           disabled={isLoading}
-          className="w-full px-4 py-2 bg-gray-50 border border-border-subtle rounded-lg focus:outline-none focus:ring-1 focus:ring-text-primary focus:border-text-primary focus:bg-white transition duration-150 disabled:bg-gray-100"
+          className="w-full px-4 py-3 bg-gray-50 border border-border-subtle rounded-lg focus:outline-none focus:ring-1 focus:ring-text-primary focus:border-text-primary focus:bg-white transition duration-200 disabled:bg-gray-100 disabled:cursor-not-allowed"
         />
         {balance !== undefined && (
           <p className="text-xs text-gray-500 mt-1">

@@ -9,25 +9,42 @@ import { formatUnits, type Hash } from "viem";
 import { getSdkError } from "@walletconnect/utils";
 import { formatJsonRpcError, formatJsonRpcResult, JsonRpcResponse } from "@walletconnect/jsonrpc-utils";
 import { LENS_ACCOUNT_ABI, LENS_CHAIN_ID, lensChain } from "@/lib/constants";
+import { motion } from "framer-motion";
+
+// dApp icon size constant
+const DAPP_ICON_SIZE = 48;
 
 // Basic Fallback Icon Component
-const FallbackIcon = ({ size = 30 }: { size?: number }) => (
+const FallbackIcon = () => (
   <div
-    style={{ width: `${size}px`, height: `${size}px` }}
-    className="rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-xs"
+    style={{ width: `${DAPP_ICON_SIZE}px`, height: `${DAPP_ICON_SIZE}px` }}
+    className="rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-xs flex-shrink-0"
   >
     ?
   </div>
 );
+
+// Animation variants matching the pattern
+const cardVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.3,
+      type: "spring" as const,
+      stiffness: 260,
+      damping: 20,
+    },
+  },
+};
 
 export function WcRequestDisplay() {
   const { pendingRequest, respondRequest, error: wcError, isLoading: isWcLoading } = useWalletConnect();
   const { lensAccountAddress } = useLensAccount();
   const { address: ownerAddress, chainId: ownerChainId } = useAccount();
 
-  // State related to the write *initiation*
   const { data: hash, error: writeError, isPending: isWritePending, writeContractAsync, reset: resetWriteContract } = useWriteContract();
-  // State related to the *confirmation* of the hash from write initiation
   const {
     isLoading: isConfirming,
     isSuccess: isConfirmed,
@@ -37,19 +54,14 @@ export function WcRequestDisplay() {
 
   const [localError, setLocalError] = useState<string | null>(null);
   const [localLoadingMessage, setLocalLoadingMessage] = useState<string | null>(null);
-  // Store the ID of the request currently being actively processed
   const processingRequestId = useRef<number | null>(null);
-  // Store the hash associated with the *currently processed* request ID
   const processingRequestHash = useRef<Hash | null>(null);
 
-  // --- Log Component Render ---
   console.log(
     `%cWcRequestDisplay Render: pendingReqId=${pendingRequest?.id ?? "null"}, currentProcessingId=${processingRequestId.current}, currentProcessingHash=${processingRequestHash.current ?? "null"}, hookHash=${hash ?? "null"}, isWritePending=${isWritePending}, isConfirming=${isConfirming}, isConfirmed=${isConfirmed}, receiptHash=${receipt?.transactionHash ?? "null"}, writeError=${!!writeError}, receiptError=${!!receiptError}`,
     "color: magenta",
   );
-  // --------------------------
 
-  // --- Effect to Reset State When a NEW Request Arrives ---
   useEffect(() => {
     const incomingRequestId = pendingRequest?.id ?? null;
     const currentProcessing = processingRequestId.current;
@@ -66,7 +78,7 @@ export function WcRequestDisplay() {
         setLocalError(null);
         setLocalLoadingMessage(null);
         processingRequestId.current = incomingRequestId;
-        processingRequestHash.current = null; // Reset hash ref
+        processingRequestHash.current = null;
       } else {
         console.log(
           `%cWcRequestDisplay ResetEffect: Incoming ID ${incomingRequestId} matches current Processing ID. No reset needed.`,
@@ -80,33 +92,30 @@ export function WcRequestDisplay() {
         setLocalError(null);
         setLocalLoadingMessage(null);
         processingRequestId.current = null;
-        processingRequestHash.current = null; // Reset hash ref
+        processingRequestHash.current = null;
       } else {
         console.log(`%cWcRequestDisplay ResetEffect: No pending request and nothing processing. No reset needed.`, "color: teal");
       }
     }
-  }, [pendingRequest, resetWriteContract]); // Now depends on pendingRequest object itself
+  }, [pendingRequest, resetWriteContract]);
 
-  // --- Effect to track the hash associated with the current request ---
   useEffect(() => {
     if (hash && processingRequestId.current && !processingRequestHash.current) {
       console.log(`%cWcRequestDisplay HashTrackEffect: Associating hash ${hash} with request ID ${processingRequestId.current}`, "color: purple");
-      processingRequestHash.current = hash; // Store the hash for the request we are processing
+      processingRequestHash.current = hash;
     }
-  }, [hash, processingRequestId]); // Run when hash changes and we have a processing ID
+  }, [hash, processingRequestId]);
 
-  // --- Centralized Respond Function ---
   const handleRespond = useCallback(
     (response: JsonRpcResponse) => {
       const currentId = processingRequestId.current;
       if (currentId !== null && currentId === response.id) {
         console.log(`%cWcRequestDisplay handleRespond: Responding for request ID: ${response.id}`, "color: darkmagenta", response);
         respondRequest(response);
-        // Reset processing state *after* responding
         processingRequestId.current = null;
-        processingRequestHash.current = null; // Reset hash ref
+        processingRequestHash.current = null;
         setLocalLoadingMessage(null);
-        resetWriteContract(); // Try resetting here too
+        resetWriteContract();
       } else {
         console.warn(
           `%cWcRequestDisplay handleRespond: Ignoring response attempt for stale/mismatched request ID: ${response.id} (Current Processing: ${currentId})`,
@@ -115,23 +124,17 @@ export function WcRequestDisplay() {
       }
     },
     [respondRequest, resetWriteContract],
-  ); // Add resetWriteContract
+  );
 
-  // --- Effect to Handle Transaction Submission Result ---
   useEffect(() => {
     const currentProcessingId = processingRequestId.current;
-    const currentReqHash = processingRequestHash.current; // Use the hash we stored for this request
+    const currentReqHash = processingRequestHash.current;
 
     console.log(
       `%cWcRequestDisplay ReceiptEffect: Running. CurrentProcessingId=${currentProcessingId}, CurrentReqHash=${currentReqHash ?? "null"}, HookHash=${hash ?? "null"}, isConfirming=${isConfirming}, isConfirmed=${isConfirmed}, receiptHash=${receipt?.transactionHash ?? "null"}, receiptError=${!!receiptError}`,
       "color: #2ECC71",
     );
 
-    // Guards:
-    // 1. Must be processing a request.
-    // 2. Must have a specific hash associated with *this* request attempt.
-    // 3. The confirmation process must be finished (or errored).
-    // 4. The hook's current hash must match the hash associated with our request.
     if (!currentProcessingId || !currentReqHash || isConfirming || hash !== currentReqHash) {
       console.log(
         `%cWcRequestDisplay ReceiptEffect: Bailing out (ProcessingID: ${currentProcessingId}, CurrentReqHash: ${currentReqHash}, HookHash: ${hash}, Confirming: ${isConfirming})`,
@@ -140,7 +143,6 @@ export function WcRequestDisplay() {
       return;
     }
 
-    // Now check receipt and errors, ensuring they match the currentReqHash
     if (receipt && receipt.transactionHash === currentReqHash) {
       console.log(`%cWcRequestDisplay ReceiptEffect: Receipt received for current hash ${currentReqHash}`, "color: #2ECC71");
       setLocalLoadingMessage(null);
@@ -175,9 +177,8 @@ export function WcRequestDisplay() {
     } else {
       console.log(`%cWcRequestDisplay ReceiptEffect: No definitive action taken for hash ${currentReqHash}`, "color: gray");
     }
-  }, [isConfirming, isConfirmed, receiptError, receipt, hash, handleRespond]); // Keep dependencies
+  }, [isConfirming, isConfirmed, receiptError, receipt, hash, handleRespond]);
 
-  // --- Effect to Handle Direct Write Errors ---
   useEffect(() => {
     const currentProcessingId = processingRequestId.current;
     console.log(`%cWcRequestDisplay WriteErrorEffect: Running. writeError=${!!writeError}, currentProcessingId=${currentProcessingId}`, "color: red");
@@ -195,11 +196,10 @@ export function WcRequestDisplay() {
     if (!writeContractAsync) return setLocalError("Transaction function not ready.");
     if (ownerChainId !== LENS_CHAIN_ID) return setLocalError("Owner wallet not on Lens Chain.");
 
-    // Reset local state AND ensure we reset wagmi state *before* initiating write
     console.log(`%cWcRequestDisplay handleApprove: Resetting state before write for request ID: ${pendingRequest.id}`, "color: blueviolet");
-    resetWriteContract(); // Reset here as well
-    processingRequestId.current = pendingRequest.id; // Mark immediately
-    processingRequestHash.current = null; // Clear previous hash
+    resetWriteContract();
+    processingRequestId.current = pendingRequest.id;
+    processingRequestHash.current = null;
     setLocalError(null);
     setLocalLoadingMessage("Please confirm in your wallet...");
 
@@ -225,7 +225,6 @@ export function WcRequestDisplay() {
 
     try {
       console.log("%cWcRequestDisplay handleApprove: Calling writeContractAsync...", "color: blueviolet");
-      // Call async, the hash state update will trigger the HashTrackEffect
       await writeContractAsync({
         address: lensAccountAddress,
         abi: LENS_ACCOUNT_ABI,
@@ -238,7 +237,6 @@ export function WcRequestDisplay() {
     } catch (error) {
       console.error("WcRequestDisplay handleApprove: Error calling writeContractAsync:", error);
       if (!writeError && processingRequestId.current) {
-        // Check current ID before responding
         const errorMsg = `Failed to initiate transaction: ${(error as Error).message}`;
         setLocalError(errorMsg);
         handleRespond(formatJsonRpcError(processingRequestId.current, getSdkError("USER_REJECTED")));
@@ -248,90 +246,97 @@ export function WcRequestDisplay() {
 
   const handleReject = () => {
     if (!pendingRequest) return;
-    processingRequestId.current = pendingRequest.id; // Mark which request we are rejecting
+    processingRequestId.current = pendingRequest.id;
     setLocalError(null);
     setLocalLoadingMessage(null);
     console.log("WcRequestDisplay handleReject: Rejecting request:", pendingRequest.id);
     handleRespond(formatJsonRpcError(pendingRequest.id, getSdkError("USER_REJECTED")));
   };
 
-  // --- Render Logic ---
   if (!pendingRequest) {
-    return (
-      // Style the "no requests" message slightly differently
-      <div className="p-8 text-center">
-        <p className="text-gray-500 italic">No pending WalletConnect requests.</p>
-      </div>
-    );
+    return null;
   }
 
-  // Extract request details safely
   const { request, chainId } = pendingRequest.params;
   const txDetails = request.params?.[0] as { to?: string; value?: string; data?: string } | undefined;
   const dAppName = pendingRequest.verifyContext?.verified.origin || "Unknown dApp";
-  const dAppUrl = pendingRequest.verifyContext?.verified.origin;
   const formattedValue = txDetails?.value
     ? `${formatUnits(BigInt(txDetails.value), lensChain.nativeCurrency.decimals)} ${lensChain.nativeCurrency.symbol}`
     : `0 ${lensChain.nativeCurrency.symbol}`;
   const isLoading = isWritePending || isConfirming || isWcLoading;
 
   return (
-    // Remove border, use background, add padding here
-    <div className="p-6 md:p-8 bg-gray-50 space-y-5">
-      <h3 className="text-lg font-semibold text-text-primary">WalletConnect Request</h3>
-      <div className="flex items-center space-x-3 mb-3 pb-3 border-b border-blue-200">
-        <FallbackIcon size={30} />
-        <div>
-          <p className="text-sm font-medium text-gray-800">{dAppName}</p>
-          {dAppUrl && <p className="text-xs text-gray-500">{dAppUrl}</p>}
+    <motion.div layout className="w-full" variants={cardVariants} initial="hidden" animate="visible">
+      <motion.div layout className="bg-gray-50 w-full rounded-3xl p-3 border-2 border-blue-200">
+        {/* Header Row */}
+        <div className="flex items-center gap-4">
+          <div className="flex-shrink-0">
+            <FallbackIcon />
+          </div>
+          <div className="flex-1 flex flex-col gap-1">
+            <p className="text-xs text-blue-600 font-medium">Transaction Request</p>
+            <p className="text-base font-medium text-foreground">{dAppName}</p>
+            <p className="text-xs text-gray-600">
+              {request.method} • {formattedValue}
+            </p>
+          </div>
         </div>
-      </div>
 
-      <div className="space-y-2 text-sm">
-        <p>
-          <strong className="text-gray-600">Method:</strong> <span className="font-mono bg-gray-100 px-1 rounded">{request.method}</span>
-          {/* Add space */}
-          <strong className="text-gray-600">Chain:</strong> <span className="font-mono bg-gray-100 px-1 rounded">{chainId}</span>
-        </p>
-        <p>
-          <strong className="text-gray-600">Target (to):</strong> <span className="font-mono text-xs break-all">{txDetails?.to ?? "N/A"}</span>
-        </p>
-        {/* Keep Value and Data separated for clarity */}
-        <p>
-          <strong className="text-gray-600">Value:</strong> <span className="font-mono">{formattedValue}</span>
-        </p>
-        <div>
-          <strong className="text-gray-600">Data:</strong>
-          <textarea
-            readOnly
-            value={txDetails?.data ?? "0x"}
-            className="mt-1 w-full h-20 p-2 border border-border-subtle rounded-md text-xs font-mono bg-white focus:outline-none focus:ring-1 focus:ring-text-primary"
-          />
+        {/* Transaction Details */}
+        <div className="mt-3 pt-3 border-t border-gray-200 space-y-2">
+          <div className="flex items-start gap-2 text-xs">
+            <span className="text-gray-600 font-medium flex-shrink-0">Chain:</span>
+            <span className="font-mono bg-gray-100 px-1 rounded">{chainId}</span>
+          </div>
+          <div className="flex items-start gap-2 text-xs">
+            <span className="text-gray-600 font-medium flex-shrink-0">Target:</span>
+            <span className="font-mono text-[10px] break-all">{txDetails?.to ?? "N/A"}</span>
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="text-xs text-gray-600 font-medium">Data:</span>
+            <textarea
+              readOnly
+              value={txDetails?.data ?? "0x"}
+              className="w-full h-16 p-2 border border-gray-200 rounded-lg text-[10px] font-mono bg-white focus:outline-none resize-none"
+            />
+          </div>
         </div>
-      </div>
 
-      {/* Status Display */}
-      {localLoadingMessage && <p className="text-sm text-center text-text-secondary animate-pulse">{localLoadingMessage}</p>}
-      {localError && <p className="text-sm text-center text-red-600">{localError}</p>}
-      {wcError && !localError && <p className="text-sm text-center text-red-600">WC Error: {wcError}</p>}
+        {/* Status Messages */}
+        {localLoadingMessage && (
+          <div className="mt-2">
+            <p className="text-xs text-center text-blue-600 animate-pulse">{localLoadingMessage}</p>
+          </div>
+        )}
+        {localError && (
+          <div className="mt-2">
+            <p className="text-xs text-center text-red-600">{localError}</p>
+          </div>
+        )}
+        {wcError && !localError && (
+          <div className="mt-2">
+            <p className="text-xs text-center text-red-600">WC Error: {wcError}</p>
+          </div>
+        )}
 
-      {/* Action Buttons */}
-      <div className="flex space-x-3 pt-2">
-        <button
-          onClick={handleApprove}
-          disabled={isLoading}
-          className="flex-1 px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 transition-colors"
-        >
-          {isWritePending ? "Check Wallet..." : isConfirming ? "Confirming..." : "Approve & Send"}
-        </button>
-        <button
-          onClick={handleReject}
-          disabled={isLoading}
-          className="flex-1 px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 transition-colors"
-        >
-          Reject
-        </button>
-      </div>
-    </div>
+        {/* Action Buttons */}
+        <div className="mt-3 flex gap-2">
+          <button
+            onClick={handleApprove}
+            disabled={isLoading}
+            className="flex-1 px-4 py-2 bg-green-600 text-white text-xs font-medium rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-150"
+          >
+            {isWritePending ? "Check Wallet..." : isConfirming ? "Confirming..." : "Approve & Send"}
+          </button>
+          <button
+            onClick={handleReject}
+            disabled={isLoading}
+            className="flex-1 px-4 py-2 bg-red-600 text-white text-xs font-medium rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-150"
+          >
+            Reject
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
   );
 }

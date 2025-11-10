@@ -9,12 +9,16 @@ interface LeftPanelContainerProps {
   children: React.ReactNode;
   variant?: "login" | "dashboard";
   animationKey?: string;
+  className?: string;
   onAnimationComplete?: () => void;
 }
 
-export function LeftPanelContainer({ children, variant = "login", animationKey, onAnimationComplete }: LeftPanelContainerProps) {
+export function LeftPanelContainer({ children, variant = "login", animationKey, className, onAnimationComplete }: LeftPanelContainerProps) {
+  const baseClasses = "w-full lg:w-1/2 flex flex-col min-h-screen bg-white z-10 border-r border-gray-200 shadow-lg";
+  const containerClasses = className ? `${baseClasses} ${className}` : baseClasses;
+
   return (
-    <div className="w-full lg:w-1/2 flex flex-col min-h-screen bg-white z-10 border-r border-gray-200 shadow-lg">
+    <div className={containerClasses}>
       <AnimatePresence mode="wait">
         <motion.div
           key={animationKey || variant}
@@ -36,7 +40,7 @@ export function LeftPanelContainer({ children, variant = "login", animationKey, 
           ) : (
             <>
               {/* Dashboard variant: scrollable content */}
-              <div className="flex-1 overflow-y-auto px-6 md:px-12 lg:px-16 py-10">{children}</div>
+              <div className="flex-1 flex flex-col overflow-y-auto">{children}</div>
               <LeftPanelFooter />
             </>
           )}
