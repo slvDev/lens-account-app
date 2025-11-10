@@ -7,8 +7,6 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "prepare": "husky",
-    "generate-llms": "repomix --include \"*.*,src\" --ignore \"llms.txt\" -o llms.txt",
     "format": "prettier --write \"src/**/*.{js,jsx,ts,tsx,css,md,json}\"",
     "format:check": "prettier --check \"src/**/*.{js,jsx,ts,tsx,css,md,json}\""
   },
@@ -39,10 +37,8 @@
     "@walletconnect/types": "^2.20.0",
     "eslint": "^9",
     "eslint-config-next": "15.3.1",
-    "husky": "^9.1.7",
     "pino-pretty": "^13.0.0",
     "prettier": "^3.5.3",
-    "repomix": "^0.3.2",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
